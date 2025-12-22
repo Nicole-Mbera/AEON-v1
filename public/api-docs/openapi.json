@@ -1,0 +1,1259 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "AEON API Documentation",
+    "version": "1.0.0",
+    "description": "Comprehensive REST API documentation for AEON English Learning Platform",
+    "contact": {
+      "name": "AEON Support",
+      "email": "support@aeon.com"
+    },
+    "license": {
+      "name": "MIT",
+      "url": "https://opensource.org/licenses/MIT"
+    }
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3000",
+      "description": "Development server"
+    },
+    {
+      "url": "https://aeon.com",
+      "description": "Production server"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Authentication",
+      "description": "User authentication and authorization endpoints"
+    },
+    {
+      "name": "Students",
+      "description": "Student-specific endpoints for booking lessons and managing profile"
+    },
+    {
+      "name": "Teachers",
+      "description": "Teacher endpoints for managing lessons, availability, and profile"
+    },
+    {
+      "name": "Lessons",
+      "description": "Lesson booking and management endpoints"
+    },
+    {
+      "name": "Resources",
+      "description": "Educational resources and learning materials"
+    },
+    {
+      "name": "Reviews",
+      "description": "Teacher reviews and ratings"
+    },
+    {
+      "name": "Users",
+      "description": "User profile and account management endpoints"
+    },
+    {
+      "name": "Admin",
+      "description": "System administrator endpoints for analytics and management"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "cookieAuth": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "token"
+      },
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    },
+    "schemas": {
+      "User": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "student",
+              "teacher",
+              "system_admin"
+            ]
+          },
+          "is_verified": {
+            "type": "boolean"
+          },
+          "is_active": {
+            "type": "boolean"
+          }
+        }
+      },
+      "Student": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "user_id": {
+            "type": "integer"
+          },
+          "username": {
+            "type": "string"
+          },
+          "full_name": {
+            "type": "string"
+          },
+          "date_of_birth": {
+            "type": "string",
+            "format": "date"
+          },
+          "gender": {
+            "type": "string"
+          },
+          "phone": {
+            "type": "string"
+          },
+          "english_level": {
+            "type": "string",
+            "enum": [
+              "beginner",
+              "elementary",
+              "intermediate",
+              "upper-intermediate",
+              "advanced",
+              "proficient"
+            ]
+          },
+          "learning_goals": {
+            "type": "string"
+          }
+        }
+      },
+      "Teacher": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "user_id": {
+            "type": "integer"
+          },
+          "full_name": {
+            "type": "string"
+          },
+          "bio": {
+            "type": "string"
+          },
+          "specialization": {
+            "type": "string"
+          },
+          "years_of_experience": {
+            "type": "integer"
+          },
+          "hourly_rate": {
+            "type": "number"
+          },
+          "rating": {
+            "type": "number"
+          },
+          "total_reviews": {
+            "type": "integer"
+          },
+          "is_verified": {
+            "type": "boolean"
+          }
+        }
+      },
+      "Lesson": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "student_id": {
+            "type": "integer"
+          },
+          "teacher_id": {
+            "type": "integer"
+          },
+          "scheduled_date": {
+            "type": "string",
+            "format": "date"
+          },
+          "scheduled_time": {
+            "type": "string"
+          },
+          "duration_minutes": {
+            "type": "integer"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "scheduled",
+              "in-progress",
+              "completed",
+              "cancelled",
+              "no-show"
+            ]
+          },
+          "meeting_link": {
+            "type": "string"
+          },
+          "lesson_notes": {
+            "type": "string"
+          },
+          "homework": {
+            "type": "string"
+          }
+        }
+      },
+      "Resource": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "title": {
+            "type": "string"
+          },
+          "content": {
+            "type": "string"
+          },
+          "author_id": {
+            "type": "integer"
+          },
+          "category": {
+            "type": "string"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "difficulty_level": {
+            "type": "string",
+            "enum": [
+              "beginner",
+              "elementary",
+              "intermediate",
+              "upper-intermediate",
+              "advanced",
+              "proficient"
+            ]
+          },
+          "resource_type": {
+            "type": "string",
+            "enum": [
+              "article",
+              "video",
+              "audio",
+              "pdf",
+              "interactive"
+            ]
+          }
+        }
+      },
+      "Error": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "string"
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/api/auth/login": {
+      "post": {
+        "tags": [
+          "Authentication"
+        ],
+        "summary": "User login",
+        "description": "Authenticate user and return JWT token",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "email",
+                  "password"
+                ],
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email",
+                    "example": "student@aeon.com"
+                  },
+                  "password": {
+                    "type": "string",
+                    "format": "password",
+                    "example": "SecurePass123"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Login successful",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "token": {
+                      "type": "string"
+                    },
+                    "user": {
+                      "$ref": "#/components/schemas/User"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid credentials"
+          },
+          "429": {
+            "description": "Too many login attempts"
+          }
+        }
+      }
+    },
+    "/api/auth/register": {
+      "post": {
+        "tags": [
+          "Authentication"
+        ],
+        "summary": "User registration",
+        "description": "Register a new student or teacher account",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "required": [
+                      "email",
+                      "password",
+                      "role",
+                      "username"
+                    ],
+                    "properties": {
+                      "email": {
+                        "type": "string",
+                        "format": "email"
+                      },
+                      "password": {
+                        "type": "string",
+                        "minLength": 8
+                      },
+                      "role": {
+                        "type": "string",
+                        "enum": [
+                          "student"
+                        ]
+                      },
+                      "username": {
+                        "type": "string",
+                        "minLength": 3
+                      },
+                      "full_name": {
+                        "type": "string"
+                      },
+                      "english_level": {
+                        "type": "string",
+                        "enum": [
+                          "beginner",
+                          "elementary",
+                          "intermediate",
+                          "upper-intermediate",
+                          "advanced",
+                          "proficient"
+                        ]
+                      }
+                    }
+                  },
+                  {
+                    "type": "object",
+                    "required": [
+                      "email",
+                      "password",
+                      "role",
+                      "full_name",
+                      "specialization"
+                    ],
+                    "properties": {
+                      "email": {
+                        "type": "string",
+                        "format": "email"
+                      },
+                      "password": {
+                        "type": "string",
+                        "minLength": 8
+                      },
+                      "role": {
+                        "type": "string",
+                        "enum": [
+                          "teacher"
+                        ]
+                      },
+                      "full_name": {
+                        "type": "string"
+                      },
+                      "specialization": {
+                        "type": "string"
+                      },
+                      "bio": {
+                        "type": "string"
+                      },
+                      "years_of_experience": {
+                        "type": "integer"
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Registration successful"
+          },
+          "400": {
+            "description": "Validation error"
+          },
+          "409": {
+            "description": "Email or username already exists"
+          },
+          "429": {
+            "description": "Too many registration attempts"
+          }
+        }
+      }
+    },
+    "/api/student/lessons": {
+      "post": {
+        "tags": [
+          "Lessons"
+        ],
+        "summary": "Book a lesson",
+        "description": "Book a one-on-one lesson with a teacher",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "teacher_id",
+                  "scheduled_date",
+                  "scheduled_time"
+                ],
+                "properties": {
+                  "teacher_id": {
+                    "type": "integer"
+                  },
+                  "scheduled_date": {
+                    "type": "string",
+                    "format": "date",
+                    "example": "2025-12-20"
+                  },
+                  "scheduled_time": {
+                    "type": "string",
+                    "example": "14:00"
+                  },
+                  "duration_minutes": {
+                    "type": "integer",
+                    "default": 60
+                  },
+                  "notes": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Lesson booked successfully"
+          },
+          "400": {
+            "description": "Validation error"
+          },
+          "403": {
+            "description": "Unauthorized"
+          },
+          "409": {
+            "description": "Time slot already booked"
+          },
+          "429": {
+            "description": "Too many booking attempts"
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Lessons",
+          "Students"
+        ],
+        "summary": "Get student's lessons",
+        "description": "Retrieve all lessons for the current student",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "status",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "scheduled",
+                "in-progress",
+                "completed",
+                "cancelled",
+                "no-show"
+              ]
+            },
+            "description": "Filter by lesson status"
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "schema": {
+              "type": "integer",
+              "default": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of student's lessons",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Lesson"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Unauthorized"
+          }
+        }
+      }
+    },
+    "/api/resources": {
+      "get": {
+        "tags": [
+          "Resources"
+        ],
+        "summary": "Get all resources",
+        "description": "Retrieve educational resources with pagination",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "category",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Filter by category"
+          },
+          {
+            "in": "query",
+            "name": "difficulty_level",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "beginner",
+                "elementary",
+                "intermediate",
+                "upper-intermediate",
+                "advanced",
+                "proficient"
+              ]
+            },
+            "description": "Filter by difficulty level"
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "schema": {
+              "type": "integer",
+              "default": 1
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "type": "integer",
+              "default": 10
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of resources",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Resource"
+                      }
+                    },
+                    "total": {
+                      "type": "integer"
+                    },
+                    "page": {
+                      "type": "integer"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/teachers": {
+      "get": {
+        "tags": [
+          "Teachers"
+        ],
+        "summary": "Get all verified teachers",
+        "description": "Retrieve list of verified teachers with filters",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "specialization",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Filter by specialization"
+          },
+          {
+            "in": "query",
+            "name": "min_rating",
+            "schema": {
+              "type": "number"
+            },
+            "description": "Minimum rating filter"
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "schema": {
+              "type": "integer",
+              "default": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of teachers",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Teacher"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/student/profile": {
+      "get": {
+        "tags": [
+          "Students"
+        ],
+        "summary": "Get student profile",
+        "description": "Retrieve current student's profile information",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Student profile",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Student"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Unauthorized or not a student"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Students"
+        ],
+        "summary": "Update student profile",
+        "description": "Update current student's profile information",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "username": {
+                    "type": "string"
+                  },
+                  "full_name": {
+                    "type": "string"
+                  },
+                  "phone": {
+                    "type": "string"
+                  },
+                  "english_level": {
+                    "type": "string",
+                    "enum": [
+                      "beginner",
+                      "elementary",
+                      "intermediate",
+                      "upper-intermediate",
+                      "advanced",
+                      "proficient"
+                    ]
+                  },
+                  "learning_goals": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Profile updated successfully"
+          },
+          "400": {
+            "description": "Validation error"
+          },
+          "403": {
+            "description": "Unauthorized"
+          }
+        }
+      }
+    },
+    "/api/teacher/profile": {
+      "get": {
+        "tags": [
+          "Teachers"
+        ],
+        "summary": "Get teacher profile",
+        "description": "Retrieve current teacher's profile information",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Teacher profile",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Teacher"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Unauthorized or not a teacher"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Teachers"
+        ],
+        "summary": "Update teacher profile",
+        "description": "Update current teacher's profile information",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "full_name": {
+                    "type": "string"
+                  },
+                  "bio": {
+                    "type": "string"
+                  },
+                  "specialization": {
+                    "type": "string"
+                  },
+                  "years_of_experience": {
+                    "type": "integer"
+                  },
+                  "hourly_rate": {
+                    "type": "number"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Profile updated successfully"
+          },
+          "400": {
+            "description": "Validation error"
+          },
+          "403": {
+            "description": "Unauthorized"
+          }
+        }
+      }
+    },
+    "/api/teacher/lessons": {
+      "get": {
+        "tags": [
+          "Lessons",
+          "Teachers"
+        ],
+        "summary": "Get teacher's lessons",
+        "description": "Retrieve all lessons for the current teacher",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "status",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "scheduled",
+                "in-progress",
+                "completed",
+                "cancelled",
+                "no-show"
+              ]
+            }
+          },
+          {
+            "in": "query",
+            "name": "date",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of teacher's lessons",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Lesson"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Unauthorized"
+          }
+        }
+      }
+    },
+    "/api/teacher/availability": {
+      "get": {
+        "tags": [
+          "Teachers"
+        ],
+        "summary": "Get teacher availability",
+        "description": "Retrieve teacher's available time slots",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "start_date",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "in": "query",
+            "name": "end_date",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Teacher availability slots"
+          },
+          "403": {
+            "description": "Unauthorized"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Teachers"
+        ],
+        "summary": "Set teacher availability",
+        "description": "Set or update teacher's available time slots",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "day_of_week": {
+                    "type": "string",
+                    "enum": [
+                      "Monday",
+                      "Tuesday",
+                      "Wednesday",
+                      "Thursday",
+                      "Friday",
+                      "Saturday",
+                      "Sunday"
+                    ]
+                  },
+                  "start_time": {
+                    "type": "string",
+                    "example": "09:00"
+                  },
+                  "end_time": {
+                    "type": "string",
+                    "example": "17:00"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Availability set successfully"
+          },
+          "400": {
+            "description": "Validation error"
+          },
+          "403": {
+            "description": "Unauthorized"
+          }
+        }
+      }
+    },
+    "/api/reviews": {
+      "post": {
+        "tags": [
+          "Reviews"
+        ],
+        "summary": "Submit teacher review",
+        "description": "Submit a review and rating for a teacher after lesson",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "teacher_id",
+                  "lesson_id",
+                  "rating"
+                ],
+                "properties": {
+                  "teacher_id": {
+                    "type": "integer"
+                  },
+                  "lesson_id": {
+                    "type": "integer"
+                  },
+                  "rating": {
+                    "type": "number",
+                    "minimum": 1,
+                    "maximum": 5
+                  },
+                  "review_text": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Review submitted successfully"
+          },
+          "400": {
+            "description": "Validation error"
+          },
+          "403": {
+            "description": "Unauthorized or invalid lesson"
+          },
+          "409": {
+            "description": "Review already submitted"
+          }
+        }
+      }
+    },
+    "/api/admin/users": {
+      "get": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Get all users",
+        "description": "System admin endpoint to retrieve all users",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "role",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "student",
+                "teacher",
+                "system_admin"
+              ]
+            }
+          },
+          {
+            "in": "query",
+            "name": "is_verified",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of users"
+          },
+          "403": {
+            "description": "Unauthorized - System admin only"
+          }
+        }
+      }
+    },
+    "/api/admin/analytics": {
+      "get": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Get platform analytics",
+        "description": "System admin endpoint for platform metrics and statistics",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Platform analytics data",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "total_users": {
+                      "type": "integer"
+                    },
+                    "total_students": {
+                      "type": "integer"
+                    },
+                    "total_teachers": {
+                      "type": "integer"
+                    },
+                    "total_lessons": {
+                      "type": "integer"
+                    },
+                    "total_resources": {
+                      "type": "integer"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Unauthorized - System admin only"
+          }
+        }
+      }
+    }
+  }
+}
