@@ -200,7 +200,22 @@ const levelColors = {
     'Advanced': 'bg-red-100 text-red-800'
 };
 
-export function BooksSection() {
+interface BooksSectionProps {
+    searchQuery: string;
+    level: string;
+}
+
+export function BooksSection({ searchQuery, level }: BooksSectionProps) {
+    const filteredCategories = books.map(category => ({
+        ...category,
+        items: category.items.filter(book => {
+            const matchesSearch = book.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                book.author.toLowerCase().includes(searchQuery.toLowerCase());
+            const matchesLevel = level === 'All' || book.level.includes(level) || level.includes(book.level);
+            return matchesSearch && matchesLevel;
+        })
+    })).filter(category => category.items.length > 0);
+
     return (
         <div>
             <div className="mb-8">
@@ -209,7 +224,7 @@ export function BooksSection() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {books.map((category, categoryIndex) => (
+                {filteredCategories.map((category, categoryIndex) => (
                     <div key={categoryIndex} className="border border-gray-200 rounded-lg p-6 hover:shadow-lg transition-shadow bg-white">
                         <h3 className="text-xl font-semibold mb-4 border-b pb-2">{category.category}</h3>
                         <div className="space-y-4">

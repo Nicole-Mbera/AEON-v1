@@ -22,6 +22,8 @@ CREATE TABLE IF NOT EXISTS students (
     grade_level TEXT,
     phone TEXT,
     profile_picture TEXT,
+    english_proficiency TEXT CHECK(english_proficiency IN ('beginner', 'intermediate', 'advanced')),
+    proficiency_certificate TEXT,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
@@ -148,7 +150,7 @@ CREATE TABLE IF NOT EXISTS testimonials (
     content TEXT NOT NULL,
     rating INTEGER CHECK(rating BETWEEN 1 AND 5),
     is_featured BOOLEAN DEFAULT 0,
-    is_approved BOOLEAN DEFAULT 0,
+    approval_status TEXT DEFAULT 'pending' CHECK(approval_status IN ('pending', 'approved', 'rejected')),
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );

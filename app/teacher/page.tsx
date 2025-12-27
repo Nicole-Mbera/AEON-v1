@@ -56,9 +56,9 @@ export default function TeacherDashboardPage() {
     try {
       setLoading(true);
       const response = await fetch('/api/teacher/dashboard');
-      
+
       if (!response.ok) throw new Error('Failed to fetch dashboard data');
-      
+
       const result = await response.json();
       setData(result.data);
     } catch (err) {
@@ -78,11 +78,40 @@ export default function TeacherDashboardPage() {
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', { 
-      weekday: 'short', 
-      month: 'short', 
-      day: 'numeric' 
+    return date.toLocaleDateString('en-US', {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric'
     });
+  };
+
+  const handleCancelSession = async (sessionId: number) => {
+    if (!confirm('Are you sure you want to cancel this session? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/teacher/sessions', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          sessionId,
+          status: 'cancelled',
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to cancel session');
+      }
+
+      // Refresh dashboard data
+      fetchDashboardData();
+    } catch (err) {
+      console.error('Cancel error:', err);
+      alert('Failed to cancel session. Please try again.');
+    }
   };
 
   if (loading) {
@@ -181,11 +210,10 @@ export default function TeacherDashboardPage() {
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
                       <h3 className="font-medium text-[black]">{session.student_name}</h3>
-                      <span className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${
-                        session.status === 'confirmed' ? 'bg-green-100 text-green-700' :
-                        session.status === 'scheduled' ? 'bg-blue-100 text-blue-700' :
-                        'bg-gray-100 text-gray-700'
-                      }`}>
+                      <span className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${session.status === 'confirmed' ? 'bg-green-100 text-green-700' :
+                          session.status === 'scheduled' ? 'bg-blue-100 text-blue-700' :
+                            'bg-gray-100 text-gray-700'
+                        }`}>
                         {session.status}
                       </span>
                     </div>
@@ -193,14 +221,24 @@ export default function TeacherDashboardPage() {
                       {formatTime(session.scheduled_time)} • {session.duration_minutes} min
                     </p>
                   </div>
-                  {session.meeting_link && (
-                    <a href={session.meeting_link} target="_blank" rel="noopener noreferrer">
-                      <Button variant="secondary" className="px-4 py-2 text-xs">
-                        <Video className="h-4 w-4 mr-2" />
-                        Join
-                      </Button>
-                    </a>
-                  )}
+                  <div className="flex gap-2">
+                    {session.meeting_link && (
+                      <a href={session.meeting_link} target="_blank" rel="noopener noreferrer">
+                        <Button variant="secondary" className="px-4 py-2 text-xs">
+                          <Video className="h-4 w-4 mr-2" />
+                          Join
+                        </Button>
+                      </a>
+                    )}
+                    <Button
+                      variant="destructive"
+                      className="px-4 py-2 text-xs"
+                      onClick={() => handleCancelSession(session.id)}
+                    >
+                      <XCircle className="h-4 w-4 mr-2" />
+                      Cancel
+                    </Button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -235,10 +273,21 @@ export default function TeacherDashboardPage() {
                     </span>
                   </div>
                   <div className="flex-1 min-w-0">
-                    <h4 className="font-medium text-[black] truncate">{session.student_name}</h4>
-                    <p className="text-sm text-[gray-600]">
-                      {formatTime(session.scheduled_time)}
-                    </p>
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <h4 className="font-medium text-[black] truncate">{session.student_name}</h4>
+                        <p className="text-sm text-[gray-600]">
+                          {formatTime(session.scheduled_time)}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => handleCancelSession(session.id)}
+                        className="text-gray-400 hover:text-red-600 transition-colors p-1"
+                        title="Cancel Session"
+                      >
+                        <XCircle className="h-5 w-5" />
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}

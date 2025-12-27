@@ -40,7 +40,7 @@ function CheckoutForm() {
 
         try {
             // Create payment intent on your server
-            const response = await fetch("/api/create-payment-intent", {
+            const response = await fetch("/api/payment", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",

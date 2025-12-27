@@ -97,13 +97,6 @@ export function LoginForm() {
       >
         {isLoading ? 'Signing in...' : 'Sign in to AEON'}
       </Button>
-
-      {/* Quick test credentials hint for development */}
-      {process.env.NODE_ENV === 'development' && (
-        <div className="mt-4 rounded-2xl bg-blue-50 border border-blue-200 p-4 text-xs text-blue-800">
-          <p className="font-semibold mb-2">Test Credentials:</p>
-        </div>
-      )}
     </form>
   );
 }

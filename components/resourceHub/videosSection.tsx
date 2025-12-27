@@ -73,7 +73,23 @@ const youtubeLinks = {
     'Polyglot Tips': 'https://www.youtube.com/c/PolyglotTips'
 };
 
-export function VideosSection() {
+interface VideosSectionProps {
+    searchQuery: string;
+    level: string;
+}
+
+export function VideosSection({ searchQuery, level }: VideosSectionProps) {
+    const filteredCategories = videoCategories.map(category => ({
+        ...category,
+        videos: category.videos.filter(video => {
+            const matchesSearch = video.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                video.channel.toLowerCase().includes(searchQuery.toLowerCase());
+            // Videos don't have explicit levels in data yet, so we show them unless filtered by search
+            // In a real app we'd add level tags to videos
+            return matchesSearch;
+        })
+    })).filter(category => category.videos.length > 0);
+
     return (
         <div>
             <div className="mb-8">
@@ -82,7 +98,7 @@ export function VideosSection() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {videoCategories.map((category, categoryIndex) => (
+                {filteredCategories.map((category, categoryIndex) => (
                     <div key={categoryIndex} className="border border-gray-200 rounded-lg p-6 hover:shadow-lg transition-shadow">
                         <h3 className="text-xl font-semibold mb-4 border-b pb-2">{category.category}</h3>
                         <div className="space-y-4">

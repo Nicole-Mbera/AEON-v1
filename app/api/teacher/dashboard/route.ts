@@ -6,7 +6,7 @@ import db from '@/lib/db';
 export async function GET(request: Request) {
   try {
     const currentUser = getUserFromRequest(request);
-    
+
     if (!currentUser || currentUser.role !== 'teacher') {
       return NextResponse.json(
         { error: 'Unauthorized. Teacher access required.' },
@@ -44,7 +44,7 @@ export async function GET(request: Request) {
         SUM(CASE WHEN date(scheduled_date) = date('now') AND status IN ('scheduled', 'confirmed') THEN 1 ELSE 0 END) as todays_sessions
       FROM sessions
       WHERE teacher_id = ?
-    `).get(currentUser.userId) as {
+    `).get(professional.id) as {
       total: number;
       scheduled: number;
       completed: number;
@@ -59,16 +59,16 @@ export async function GET(request: Request) {
         p.full_name,
         p.username,
         p.profile_picture,
-        (SELECT COUNT(*) FROM sessions c2 WHERE c2.student_id = p.user_id AND c2.teacher_id = ?) as total_sessions,
-        (SELECT MAX(c3.scheduled_date) FROM sessions c3 WHERE c3.student_id = p.user_id AND c3.teacher_id = ? AND c3.status = 'completed') as last_session_date,
-        (SELECT MIN(c4.scheduled_date) FROM sessions c4 WHERE c4.student_id = p.user_id AND c4.teacher_id = ? AND c4.status IN ('scheduled', 'confirmed') AND date(c4.scheduled_date) >= date('now')) as next_session_date
+        (SELECT COUNT(*) FROM sessions c2 WHERE c2.student_id = p.id AND c2.teacher_id = ?) as total_sessions,
+        (SELECT MAX(c3.scheduled_date) FROM sessions c3 WHERE c3.student_id = p.id AND c3.teacher_id = ? AND c3.status = 'completed') as last_session_date,
+        (SELECT MIN(c4.scheduled_date) FROM sessions c4 WHERE c4.student_id = p.id AND c4.teacher_id = ? AND c4.status IN ('scheduled', 'confirmed') AND date(c4.scheduled_date) >= date('now')) as next_session_date
       FROM sessions c
-      JOIN students p ON c.student_id = p.user_id
+      JOIN students p ON c.student_id = p.id
       WHERE c.teacher_id = ?
       GROUP BY p.id
       ORDER BY last_session_date DESC
       LIMIT 10
-    `).all(currentUser.userId, currentUser.userId, currentUser.userId, currentUser.userId);
+    `).all(professional.id, professional.id, professional.id, professional.id);
 
     // Get today's sessions
     const todayConsultations = db.prepare(`
@@ -84,12 +84,12 @@ export async function GET(request: Request) {
         p.username as student_username,
         p.profile_picture as student_picture
       FROM sessions c
-      JOIN students p ON c.student_id = p.user_id
+      JOIN students p ON c.student_id = p.id
       WHERE c.teacher_id = ?
         AND date(c.scheduled_date) = date('now')
         AND c.status IN ('scheduled', 'confirmed')
       ORDER BY c.scheduled_time ASC
-    `).all(currentUser.userId);
+    `).all(professional.id);
 
     // Get upcoming sessions (next 7 days, excluding today)
     const upcomingConsultations = db.prepare(`
@@ -105,14 +105,14 @@ export async function GET(request: Request) {
         p.username as student_username,
         p.profile_picture as student_picture
       FROM sessions c
-      JOIN students p ON c.student_id = p.user_id
+      JOIN students p ON c.student_id = p.id
       WHERE c.teacher_id = ?
         AND c.status IN ('scheduled', 'confirmed')
         AND date(c.scheduled_date) > date('now')
         AND date(c.scheduled_date) <= date('now', '+7 days')
       ORDER BY c.scheduled_date ASC, c.scheduled_time ASC
       LIMIT 10
-    `).all(currentUser.userId);
+    `).all(professional.id);
 
     return NextResponse.json({
       success: true,

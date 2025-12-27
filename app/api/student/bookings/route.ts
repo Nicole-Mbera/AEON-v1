@@ -181,7 +181,7 @@ export async function POST(request: NextRequest) {
         created_at
       ) VALUES (?, ?, ?, ?, ?, 'scheduled', ?, ?, CURRENT_TIMESTAMP)
     `).run(
-      currentUser.userId,
+      student.id,
       teacher_id,
       scheduled_date,
       scheduled_time,

@@ -7,9 +7,10 @@ import { ScheduleList } from '@/components/dashboard/schedule-list';
 import { studentNav } from '@/lib/navigation';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 interface DashboardData {
-  student: { name: string; username: string };
+  student: { name: string; username: string; english_proficiency?: string | null };
   stats: {
     totalConsultations: number;
     scheduledConsultations: number;
@@ -39,6 +40,7 @@ const habitChecklist = [
 ] as const;
 
 export default function UserProfilePage() {
+  const router = useRouter();
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -64,6 +66,12 @@ export default function UserProfilePage() {
 
 
       const result = await response.json();
+
+      if (result.success && result.data?.student && !result.data.student.english_proficiency) {
+        router.push('/student/assessment');
+        return;
+      }
+
       setData(result.data);
 
     } catch (err: any) {
@@ -148,7 +156,7 @@ export default function UserProfilePage() {
         <div className="rounded-3xl border border-black/20 bg-white p-8 text-center shadow-[0_30px_80px_-60px_rgba(0,0,0,0.2)]">
           <h3 className="mb-2 text-lg font-semibold text-black">No upcoming appointments</h3>
           <p className="mb-4 text-sm text-black/70">Book your first session with a verified learning coach</p>
-          <Link href="/user/doctors"><Button variant="secondary">Find teachers</Button></Link>
+          <Link href="/student/teachers"><Button variant="secondary">Find teachers</Button></Link>
         </div>
       )}
 

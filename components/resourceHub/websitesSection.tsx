@@ -52,7 +52,18 @@ const assessmentData = [
     { test: 'Vocabulary', practiceTests: 12, avgScore: '88%', improvement: '+18%' }
 ];
 
-export function WebsitesSection() {
+interface WebsitesSectionProps {
+    searchQuery: string;
+    level: string;
+}
+
+export function WebsitesSection({ searchQuery, level }: WebsitesSectionProps) {
+    const filteredWebsites = websites.filter(site => {
+        const matchesSearch = site.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            site.description.toLowerCase().includes(searchQuery.toLowerCase());
+        return matchesSearch;
+    });
+
     return (
         <div>
             <div className="mb-8">
@@ -61,7 +72,7 @@ export function WebsitesSection() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-                {websites.map((site, index) => {
+                {filteredWebsites.map((site, index) => {
                     const Icon = site.icon;
                     return (
                         <div key={index} className="border border-gray-200 rounded-lg p-6 hover:shadow-lg transition-shadow">

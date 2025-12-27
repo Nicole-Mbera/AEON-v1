@@ -311,16 +311,16 @@ export async function sendEmail(
     return { success: true, message: 'Email sent successfully' };
   } catch (error: any) {
     console.error('Email sending failed:', error);
-    
+
     // SendGrid specific error handling
     if (error.response) {
       console.error('SendGrid Error Response:', error.response.body);
-      return { 
-        success: false, 
-        error: error.response.body.errors?.[0]?.message || error.message 
+      return {
+        success: false,
+        error: error.response.body.errors?.[0]?.message || error.message
       };
     }
-    
+
     return { success: false, error: error.message };
   }
 }
@@ -360,16 +360,16 @@ export async function sendTemplateEmail(
     return { success: true, message: 'Template email sent successfully' };
   } catch (error: any) {
     console.error('Template email sending failed:', error);
-    
+
     // SendGrid specific error handling
     if (error.response) {
       console.error('SendGrid Error Response:', error.response.body);
-      return { 
-        success: false, 
-        error: error.response.body.errors?.[0]?.message || error.message 
+      return {
+        success: false,
+        error: error.response.body.errors?.[0]?.message || error.message
       };
     }
-    
+
     return { success: false, error: error.message };
   }
 }
@@ -388,7 +388,7 @@ export async function sendInstitutionApprovalEmail(data: {
   }
 
   const from = getDefaultFrom();
-  
+
   const htmlContent = `
     <!DOCTYPE html>
     <html>
@@ -482,7 +482,7 @@ export async function sendInstitutionRejectionEmail(data: {
   }
 
   const from = getDefaultFrom();
-  
+
   const htmlContent = `
     <!DOCTYPE html>
     <html>
@@ -554,6 +554,72 @@ export async function sendInstitutionRejectionEmail(data: {
 }
 
 /**
+ * Send password reset email
+ */
+export async function sendPasswordResetEmail(email: string, token: string) {
+  if (!initializeSendGrid()) {
+    console.log('SendGrid not configured. Password reset link would be sent to:', email);
+    console.log('   Token:', token);
+    console.log('   Link:', `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/reset-password?token=${token}`);
+    return { success: true, message: 'SendGrid not configured (development mode)' };
+  }
+
+  const resetLink = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/reset-password?token=${token}`;
+  const from = getDefaultFrom();
+
+  const htmlContent = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #1a1a1a; margin: 0; padding: 0; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; background: #f8f9fa; }
+        .header { background: linear-gradient(to right, #fafafa, #f0f0f0, #fafafa); color: #1a1a1a; padding: 40px 30px; text-align: center; border-radius: 12px 12px 0 0; border-bottom: 3px solid #404040; }
+        .content { background: white; padding: 40px 30px; border-radius: 0 0 12px 12px; }
+        .button { display: inline-block; background: #404040; color: white; padding: 14px 32px; text-decoration: none; border-radius: 8px; margin: 25px 0; font-weight: 600; }
+        .footer { text-align: center; margin-top: 30px; color: #666; font-size: 13px; padding: 20px; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <h1>Reset Your Password</h1>
+        </div>
+        <div class="content">
+          <p>Hello,</p>
+          <p>We received a request to reset your password for your AEON Education account.</p>
+          <p>Click the button below to set a new password:</p>
+          
+          <center>
+            <a href="${resetLink}" class="button">Reset Password</a>
+          </center>
+          
+          <p>If you didn't request this, you can safely ignore this email. This link will expire in 1 hour.</p>
+        </div>
+        <div class="footer">
+          <p>© 2025 AEON. Level up your academic journey, one session at a time.</p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  try {
+    await sendgrid.send({
+      to: email,
+      from,
+      subject: 'Reset your password - AEON',
+      html: htmlContent,
+    });
+
+    return { success: true, message: 'Password reset email sent successfully' };
+  } catch (error: any) {
+    console.error('Failed to send password reset email:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
  * Verify SendGrid API connection
  * Note: SendGrid Web API doesn't have a direct "verify" endpoint,
  * so we'll check if the API key is set
@@ -563,7 +629,163 @@ export async function verifyEmailConnection(): Promise<boolean> {
     console.error('SendGrid API key not configured');
     return false;
   }
-  
+
   console.log('SendGrid API key is configured');
   return true;
+}
+
+/**
+ * Send teacher approval email
+ */
+export async function sendTeacherApprovalEmail(data: {
+  to: string;
+  teacherName: string;
+}) {
+  if (!initializeSendGrid()) {
+    console.warn('SendGrid not configured, skipping email');
+    return { success: false, error: 'Email service not configured' };
+  }
+
+  const from = getDefaultFrom();
+  const subscriptionLink = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/subscription/teacher`;
+
+  const htmlContent = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #1a1a1a; margin: 0; padding: 0; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; background: #f8f9fa; }
+        .header { background: linear-gradient(to right, #fafafa, #f0f0f0, #fafafa); color: #1a1a1a; padding: 40px 30px; text-align: center; border-radius: 12px 12px 0 0; border-bottom: 3px solid #404040; }
+        .header h1 { margin: 0; font-size: 28px; font-weight: 600; }
+        .content { background: white; padding: 40px 30px; border-radius: 0 0 12px 12px; }
+        .success-badge { background: #10b981; color: white; padding: 8px 16px; border-radius: 20px; display: inline-block; margin: 20px 0; font-weight: 600; }
+        .button { display: inline-block; background: #404040; color: white; padding: 14px 32px; text-decoration: none; border-radius: 8px; margin: 25px 0; font-weight: 600; }
+        .footer { text-align: center; margin-top: 30px; color: #666; font-size: 13px; padding: 20px; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <h1>Welcome to AEON Faculty!</h1>
+        </div>
+        <div class="content">
+          <p>Dear ${data.teacherName},</p>
+          
+          <div class="success-badge">Application Approved</div>
+          
+          <p>Congratulations! Your application to join AEON Education as a teacher has been approved.</p>
+          
+          <p>To active your account and start teaching, please complete your subscription setup.</p>
+          
+          <center>
+            <a href="${subscriptionLink}" class="button">
+              Activate Account
+            </a>
+          </center>
+          
+          <p>If you have any questions as you get started, please don't hesitate to reach out to our support team.</p>
+          
+          <p style="margin-top: 30px;">
+            Warm regards,<br>
+            <strong>The AEON Team</strong>
+          </p>
+        </div>
+        <div class="footer">
+          <p>© 2025 AEON. Level up your academic journey, one session at a time.</p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  try {
+    await sendgrid.send({
+      to: data.to,
+      from,
+      subject: `Welcome to AEON! Application Approved`,
+      html: htmlContent,
+    });
+
+    return { success: true, message: 'Approval email sent successfully' };
+  } catch (error: any) {
+    console.error('Failed to send approval email:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Send teacher rejection email
+ */
+export async function sendTeacherRejectionEmail(data: {
+  to: string;
+  teacherName: string;
+  reason: string;
+}) {
+  if (!initializeSendGrid()) {
+    console.warn('SendGrid not configured, skipping email');
+    return { success: false, error: 'Email service not configured' };
+  }
+
+  const from = getDefaultFrom();
+
+  const htmlContent = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #1a1a1a; margin: 0; padding: 0; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; background: #f8f9fa; }
+        .header { background: linear-gradient(to right, #fafafa, #f0f0f0, #fafafa); color: #1a1a1a; padding: 40px 30px; text-align: center; border-radius: 12px 12px 0 0; border-bottom: 3px solid #404040; }
+        .header h1 { margin: 0; font-size: 28px; font-weight: 600; }
+        .content { background: white; padding: 40px 30px; border-radius: 0 0 12px 12px; }
+        .reason-box { background: #fef3f2; padding: 20px; border-left: 4px solid #dc2626; margin: 25px 0; border-radius: 8px; }
+        .footer { text-align: center; margin-top: 30px; color: #666; font-size: 13px; padding: 20px; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <h1>Application Update</h1>
+        </div>
+        <div class="content">
+          <p>Dear ${data.teacherName},</p>
+          
+          <p>Thank you for your interest in joining AEON Education as a teacher.</p>
+          
+          <p>After reviewing your application, we regret to inform you that we are unable to move forward with your registration at this time.</p>
+          
+          <div class="reason-box">
+            <h3 style="margin: 0 0 10px 0; color: #dc2626;">Reason</h3>
+            <p style="margin: 0;">${data.reason}</p>
+          </div>
+          
+          <p>We appreciate the time you took to apply and wish you the best in your future endeavors.</p>
+          
+          <p style="margin-top: 30px;">
+            Best regards,<br>
+            <strong>The AEON Team</strong>
+          </p>
+        </div>
+        <div class="footer">
+          <p>© 2025 AEON. Level up your academic journey, one session at a time.</p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  try {
+    await sendgrid.send({
+      to: data.to,
+      from,
+      subject: `AEON Application Update`,
+      html: htmlContent,
+    });
+
+    return { success: true, message: 'Rejection email sent successfully' };
+  } catch (error: any) {
+    console.error('Failed to send rejection email:', error);
+    return { success: false, error: error.message };
+  }
 }

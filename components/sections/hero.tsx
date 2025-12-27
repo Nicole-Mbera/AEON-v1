@@ -18,7 +18,7 @@ export function HeroSection() {
               AEON, Revolutionizing Education Acessibility and Efficiency, Together.
             </h1>
             <p className="max-w-lg text-base text-white/70 sm:text-lg">
-              We connect passionate students with expert teachers through simple booking of one on one seamless authentic connection. 
+              We connect passionate students with expert teachers through simple booking of one on one seamless authentic connection.
             </p>
           </div>
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
@@ -47,8 +47,8 @@ export function HeroSection() {
           <div className="relative overflow-hidden rounded-[28px] border border-white/10 bg-white/10 p-2 shadow-[0_45px_75px_-35px_rgba(0,0,0,0.5)] backdrop-blur">
             <div className="overflow-hidden rounded-[24px]">
               <Image
-                src="https://plus.unsplash.com/premium_photo-1661949173151-37f44845dc68?q=80&w=1170&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
-                alt="African women celebrating wellness and confidence"
+                src="/uploads/Hero.JPG"
+                alt="AEON Academy"
                 width={520}
                 height={660}
                 className="h-full w-full object-cover"

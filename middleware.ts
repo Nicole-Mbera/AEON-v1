@@ -7,10 +7,11 @@ const protectedRoutes = {
   '/admin': ['admin'],
   '/teacher': ['teacher'],
   '/student': ['student'],
+  '/subscription': ['student', 'teacher'],
 };
 
 // routes with authentication
-const authRequiredRoutes = ['/admin', '/teacher', '/student'];
+const authRequiredRoutes = ['/admin', '/teacher', '/student', '/subscription'];
 
 // routes with no authentication
 const publicRoutes = ['/', '/login', '/signup', '/forgot-password', '/education', '/testimonials', '/api-docs', '/api', '/donate'];
@@ -34,11 +35,11 @@ export async function middleware(request: NextRequest) {
 
   // check if route requires authentication
   const requiresAuth = authRequiredRoutes.some(route => pathname.startsWith(route));
-  
+
   if (requiresAuth) {
     // get token from cookie or header
-    const token = request.cookies.get('token')?.value || 
-                  request.headers.get('authorization')?.replace('Bearer ', '');
+    const token = request.cookies.get('token')?.value ||
+      request.headers.get('authorization')?.replace('Bearer ', '');
 
     // redirect to login if no token
     if (!token) {

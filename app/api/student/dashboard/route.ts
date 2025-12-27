@@ -17,8 +17,8 @@ export async function GET(request: Request) {
 
     // Get student ID
     const student = db.prepare(`
-      SELECT id, username, full_name FROM students WHERE user_id = ?
-    `).get(currentUser.userId) as { id: number; username: string; full_name: string } | undefined;
+      SELECT id, username, full_name, english_proficiency FROM students WHERE user_id = ?
+    `).get(currentUser.userId) as { id: number; username: string; full_name: string; english_proficiency: string | null } | undefined;
 
     if (!student) {
       return NextResponse.json(
@@ -44,7 +44,8 @@ FROM sessions c
 JOIN teachers hp ON c.teacher_id = hp.id
 WHERE c.student_id = ?
   AND c.status IN ('scheduled', 'confirmed')
-  AND date(c.scheduled_date) <= date('now', '+7 days')
+  AND datetime(c.scheduled_date || ' ' || c.scheduled_time) > datetime('now')
+  AND date(c.scheduled_date) <= date('now', '+30 days')
 ORDER BY c.scheduled_date ASC, c.scheduled_time ASC
 LIMIT 5;
 
@@ -54,7 +55,7 @@ LIMIT 5;
     const consultationStats = db.prepare(`
       SELECT 
         COUNT(*) as total,
-        SUM(CASE WHEN status = 'scheduled' OR status = 'confirmed' THEN 1 ELSE 0 END) as scheduled,
+        SUM(CASE WHEN (status = 'scheduled' OR status = 'confirmed') AND datetime(scheduled_date || ' ' || scheduled_time) > datetime('now') THEN 1 ELSE 0 END) as scheduled,
         SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed,
         SUM(CASE WHEN status = 'cancelled' THEN 1 ELSE 0 END) as cancelled
       FROM sessions
@@ -101,6 +102,7 @@ LIMIT 5;
         student: {
           name: student.full_name || student.username,
           username: student.username,
+          english_proficiency: student.english_proficiency,
         },
         stats: {
           totalConsultations: consultationStats.total || 0,

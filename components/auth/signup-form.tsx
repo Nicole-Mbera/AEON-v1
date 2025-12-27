@@ -5,6 +5,7 @@ import { useAuth } from '@/lib/auth-context';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
+import { Check, X, CheckCircle, Circle } from 'lucide-react';
 
 type UserRole = 'student' | 'teacher';
 
@@ -65,11 +66,49 @@ export function SignupForm() {
   const [error, setError] = useState<string | null>(null);
   const [uploadedFiles, setUploadedFiles] = useState<Record<string, File>>({});
 
+  // Password Validation State
+  const [passwordCriteria, setPasswordCriteria] = useState({
+    minLength: false,
+    hasUpper: false,
+    hasLower: false,
+    hasNumber: false,
+  });
+
+  // Username Error State
+  const [usernameError, setUsernameError] = useState<string | null>(null);
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     setFormData(prev => ({
       ...prev,
       [e.target.name]: e.target.value,
     }));
+
+    if (e.target.name === 'password') {
+      const pass = e.target.value;
+      setPasswordCriteria({
+        minLength: pass.length >= 8,
+        hasUpper: /[A-Z]/.test(pass),
+        hasLower: /[a-z]/.test(pass),
+        hasNumber: /[0-9]/.test(pass),
+      });
+      // Clear main error when user types to encourage them
+      if (error) setError(null);
+    }
+
+    if (e.target.name === 'username') {
+      const uname = e.target.value;
+      if (uname.length > 0) {
+        if (uname.length < 3) {
+          setUsernameError('Username must be at least 3 characters');
+        } else if (!/^[a-zA-Z0-9_-]+$/.test(uname)) {
+          setUsernameError('Username can only contain letters, numbers, underscores, and hyphens');
+        } else {
+          setUsernameError(null);
+        }
+      } else {
+        setUsernameError(null);
+      }
+    }
   };
 
   const handleFileChange = (docType: string, e: React.ChangeEvent<HTMLInputElement>) => {
@@ -96,8 +135,18 @@ export function SignupForm() {
       return;
     }
 
-    if (formData.password.length < 6) {
-      setError('Password must be at least 6 characters');
+    if (formData.password.length < 8) {
+      setError('Password must be at least 8 characters');
+      return;
+    }
+
+    const { minLength, hasUpper, hasLower, hasNumber } = passwordCriteria;
+    if (!minLength || !hasUpper || !hasLower || !hasNumber) {
+      setError('Please meet all password requirements');
+      return;
+    }
+
+    if (selectedRole === 'student' && usernameError) {
       return;
     }
 
@@ -195,7 +244,7 @@ export function SignupForm() {
         document.cookie = `token=${data.token}; path=/; max-age=604800; SameSite=Lax`;
 
         const redirectMap = {
-          'student': '/student',
+          'student': '/subscription',
           'teacher': '/teacher',
         };
 
@@ -278,9 +327,31 @@ export function SignupForm() {
             onChange={handleChange}
             required
             disabled={isLoading}
-            placeholder=" At least 7 characters, numbers, letters and special characters."
+            placeholder="At least 8 characters..."
             className="border-gray-300 focus:border-gray-800 focus:ring-gray-300"
           />
+          {/* Password Strength Checklist */}
+          <div className="mt-3 space-y-2 rounded-xl bg-gray-50 p-4 border border-gray-100">
+            <p className="text-xs font-semibold text-gray-500 mb-2">Password requirements:</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <div className={`flex items-center gap-2 text-xs ${passwordCriteria.minLength ? 'text-green-600 font-medium' : 'text-gray-500'}`}>
+                {passwordCriteria.minLength ? <CheckCircle className="w-3.5 h-3.5" /> : <Circle className="w-3.5 h-3.5" />}
+                <span>Minimum 8 characters</span>
+              </div>
+              <div className={`flex items-center gap-2 text-xs ${passwordCriteria.hasUpper ? 'text-green-600 font-medium' : 'text-gray-500'}`}>
+                {passwordCriteria.hasUpper ? <CheckCircle className="w-3.5 h-3.5" /> : <Circle className="w-3.5 h-3.5" />}
+                <span>One uppercase letter</span>
+              </div>
+              <div className={`flex items-center gap-2 text-xs ${passwordCriteria.hasLower ? 'text-green-600 font-medium' : 'text-gray-500'}`}>
+                {passwordCriteria.hasLower ? <CheckCircle className="w-3.5 h-3.5" /> : <Circle className="w-3.5 h-3.5" />}
+                <span>One lowercase letter</span>
+              </div>
+              <div className={`flex items-center gap-2 text-xs ${passwordCriteria.hasNumber ? 'text-green-600 font-medium' : 'text-gray-500'}`}>
+                {passwordCriteria.hasNumber ? <CheckCircle className="w-3.5 h-3.5" /> : <Circle className="w-3.5 h-3.5" />}
+                <span>One number</span>
+              </div>
+            </div>
+          </div>
         </div>
 
         <div className="space-y-2">
@@ -310,9 +381,14 @@ export function SignupForm() {
                 onChange={handleChange}
                 required
                 disabled={isLoading}
-                placeholder="Choose a unique username, no space."
-                className="border-gray-300 focus:border-gray-800 focus:ring-gray-300"
+                placeholder="Choose a unique username"
+                className={`border-gray-300 focus:border-gray-800 focus:ring-gray-300 ${usernameError ? 'border-red-300 focus:border-red-500 focus:ring-red-200' : ''}`}
               />
+              {usernameError && (
+                <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
+                  <X className="w-3 h-3" /> {usernameError}
+                </p>
+              )}
             </div>
             <div className="space-y-2">
               <Label htmlFor="full_name">Full Name</Label>

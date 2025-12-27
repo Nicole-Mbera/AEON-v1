@@ -1,5 +1,4 @@
 'use client';
-import Link from "next/link";
 import { useState } from 'react';
 import {
     BookOpen, Newspaper, Globe, PlayCircle,
@@ -21,24 +20,52 @@ const tabs = [
 
 export default function ResourceHub() {
     const [activeTab, setActiveTab] = useState('videos');
+    const [searchQuery, setSearchQuery] = useState('');
+    const [activeLevel, setActiveLevel] = useState('All');
+
+    const levels = ['All', 'Beginner', 'Intermediate', 'Advanced'];
 
     return (
         <div className="min-h-screen bg-white">
             <div className="container mx-auto px-4 py-8">
 
+                {/* Top Controls: Search & Filter */}
+                <div className="flex flex-col md:flex-row gap-4 mb-8 justify-between items-center">
+                    {/* Search Bar */}
+                    <div className="relative w-full md:w-96">
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <BookOpen className="h-5 w-5 text-gray-400" />
+                        </div>
+                        <input
+                            type="text"
+                            className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-black focus:border-black sm:text-sm"
+                            placeholder="Search resources..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                        />
+                    </div>
+
+                    {/* Level Filter */}
+                    <div className="flex bg-gray-100 p-1 rounded-lg">
+                        {levels.map((level) => (
+                            <button
+                                key={level}
+                                onClick={() => setActiveLevel(level)}
+                                className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${activeLevel === level
+                                        ? 'bg-white text-black shadow-sm'
+                                        : 'text-gray-500 hover:text-gray-900'
+                                    }`}
+                            >
+                                {level}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
                 {/* Stats Banner */}
                 <div className="bg-black text-white rounded-xl p-6 mb-8">
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
 
-                        <Link
-                            href="/"
-                            className="flex items-center gap-3 text-base font-semibold tracking-tight"
-                        >
-                            <span className="flex h-12 w-12 items-center justify-center rounded-full bg-black text-sm font-bold uppercase text-white">
-                                AEON
-                            </span>
-                            AEON Education
-                        </Link>
                         <div className="text-center">
                             <CheckCircle className="w-8 h-8 mx-auto mb-2" />
                             <p className="text-2xl font-bold">150+</p>
@@ -72,7 +99,7 @@ export default function ResourceHub() {
                                     key={tab.id}
                                     onClick={() => setActiveTab(tab.id)}
                                     className={`flex items-center space-x-2 py-4 px-1 text-lg font-medium transition-colors ${activeTab === tab.id
-                                        ? 'tab-active'
+                                        ? 'tab-active border-b-2 border-black text-black'
                                         : 'tab-inactive text-gray-500 hover:text-black'
                                         }`}
                                 >
@@ -86,13 +113,18 @@ export default function ResourceHub() {
 
                 {/* Tab Content */}
                 <div className="min-h-[600px]">
-                    {activeTab === 'websites' && <WebsitesSection />}
-                    {activeTab === 'videos' && <VideosSection />}
-                    {activeTab === 'books' && <BooksSection />}
-                    {activeTab === 'articles' && <ArticlesSection />}
+                    {activeTab === 'websites' && <WebsitesSection searchQuery={searchQuery} level={activeLevel} />}
+                    {activeTab === 'videos' && <VideosSection searchQuery={searchQuery} level={activeLevel} />}
+                    {activeTab === 'books' && <BooksSection searchQuery={searchQuery} level={activeLevel} />}
+                    {activeTab === 'articles' && <ArticlesSection searchQuery={searchQuery} level={activeLevel} />}
 
                 </div>
             </div>
+            <style jsx>{`
+                .tab-active {
+                    color: black;
+                }
+            `}</style>
         </div>
     );
 }

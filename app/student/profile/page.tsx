@@ -91,7 +91,7 @@ export default function UserProfilePage() {
     const startTime = new Date(`2000-01-01T${apt.scheduled_time}`);
     const endTime = new Date(startTime.getTime() + (apt.duration_minutes || 30) * 60000);
     const timeRange = `${startTime.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })} - ${endTime.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}`;
-    
+
     return {
       title: `Session with ${apt.doctor_name}`,
       date: new Date(apt.scheduled_date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }),
@@ -125,7 +125,7 @@ export default function UserProfilePage() {
             ))}
           </ul>
         </div>
-    
+
       </section>
 
       {formattedAppointments.length > 0 ? (
@@ -134,7 +134,7 @@ export default function UserProfilePage() {
         <div className="rounded-3xl border border-black/20 bg-white p-8 text-center shadow-[0_30px_80px_-60px_rgba(0,0,0,0.2)]">
           <h3 className="mb-2 text-lg font-semibold text-black">No upcoming appointments</h3>
           <p className="mb-4 text-sm text-black/70">Book your first session with a verified learning coach</p>
-          <Link href="/user/doctors"><Button variant="secondary">Find teachers</Button></Link>
+          <Link href="/student/teachers"><Button variant="secondary">Find teachers</Button></Link>
         </div>
       )}
 

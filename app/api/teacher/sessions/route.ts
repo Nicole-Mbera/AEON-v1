@@ -15,6 +15,13 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
+    // Get teacher profile
+    const teacher = db.prepare('SELECT id FROM teachers WHERE user_id = ?').get(currentUser.userId) as { id: number } | undefined;
+
+    if (!teacher) {
+      return NextResponse.json({ error: 'Teacher profile not found' }, { status: 404 });
+    }
+
     const url = new URL(request.url);
     const status = url.searchParams.get('status') || 'all';
 
@@ -32,11 +39,11 @@ export async function GET(request: Request) {
         st.username as student_username,
         st.profile_picture as student_picture
       FROM sessions s
-      JOIN students st ON s.student_id = st.user_id
+      JOIN students st ON s.student_id = st.id
       WHERE s.teacher_id = ?
     `;
 
-    const params: any[] = [currentUser.userId];
+    const params: any[] = [teacher.id];
 
     if (status !== 'all') {
       query += ` AND s.status = ?`;
@@ -83,10 +90,28 @@ export async function PATCH(request: Request) {
       );
     }
 
-    // Verify session belongs to teacher
+    // Get teacher profile
+    const teacher = db.prepare('SELECT id FROM teachers WHERE user_id = ?').get(currentUser.userId) as { id: number } | undefined;
+
+    if (!teacher) {
+      return NextResponse.json({ error: 'Teacher profile not found' }, { status: 404 });
+    }
+
+    // Verify session belongs to teacher and get student details for email
     const session = db.prepare(`
-      SELECT id FROM sessions WHERE id = ? AND teacher_id = ?
-    `).get(sessionId, currentUser.userId);
+      SELECT 
+        s.id, 
+        s.scheduled_date, 
+        s.scheduled_time,
+        st.full_name as student_name,
+        u.email as student_email,
+        t.full_name as teacher_name
+      FROM sessions s
+      JOIN students st ON s.student_id = st.id
+      JOIN users u ON st.user_id = u.id
+      JOIN teachers t ON s.teacher_id = t.id
+      WHERE s.id = ? AND s.teacher_id = ?
+    `).get(sessionId, teacher.id) as any;
 
     if (!session) {
       return NextResponse.json(
@@ -103,6 +128,29 @@ export async function PATCH(request: Request) {
     `);
 
     updateStmt.run(status, notes || null, sessionId);
+
+    // Send email notification if cancelled
+    if (status === 'cancelled') {
+      try {
+        const { sendEmail } = await import('@/lib/email'); // Dynamic import to avoid circular deps if any
+        const emailSubject = `Session Cancelled - ${session.teacher_name}`;
+        const emailHtml = `
+          <h2>Session Cancelled</h2>
+          <p>Hello ${session.student_name},</p>
+          <p>Your session with ${session.teacher_name} has been cancelled by the teacher.</p>
+          <p><strong>Original Date:</strong> ${new Date(session.scheduled_date).toLocaleDateString()}</p>
+          <p><strong>Original Time:</strong> ${session.scheduled_time}</p>
+          <p>Please log in to your dashboard to book a new session or contact support if you have questions.</p>
+        `;
+
+        await sendEmail(session.student_email, {
+          subject: emailSubject,
+          html: emailHtml
+        });
+      } catch (emailError) {
+        console.error('Email notification error:', emailError);
+      }
+    }
 
     return NextResponse.json({
       success: true,

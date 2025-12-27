@@ -95,6 +95,40 @@ export async function POST(req: NextRequest) {
 
     const result = bookSession();
 
+    // Send confirmation email asynchronously
+    try {
+      // Fetch student email and name
+      const studentData = db.prepare(`
+        SELECT s.full_name, u.email 
+        FROM students s
+        JOIN users u ON s.user_id = u.id
+        WHERE s.id = ?
+      `).get(student.id) as { full_name: string; email: string };
+
+      // Fetch teacher name
+      const teacherData = db.prepare(
+        'SELECT full_name FROM teachers WHERE id = ?'
+      ).get(teacherId) as { full_name: string };
+
+      if (studentData?.email && teacherData) {
+        const { sendEmail, emailTemplates } = await import('@/lib/email');
+
+        await sendEmail(
+          studentData.email,
+          emailTemplates.confirmation({
+            studentName: studentData.full_name || 'Student',
+            mentorName: teacherData.full_name,
+            date: scheduledDate,
+            time: scheduledTime,
+            meetingLink: result.meetingLink,
+          })
+        );
+      }
+    } catch (emailError) {
+      console.error('Failed to send confirmation email:', emailError);
+      // Don't fail the request if email fails, just log it
+    }
+
     return NextResponse.json({
       message: 'Session booked successfully',
       session: result
