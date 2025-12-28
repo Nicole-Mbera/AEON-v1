@@ -1,17 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
-import Database from 'better-sqlite3';
-import path from 'path';
 import { getUserFromRequest } from '@/lib/auth';
+import db from '@/lib/db';
 
-const dbPath = path.join(process.cwd(), 'aeon.db');
-const db = new Database(dbPath);
+export const dynamic = 'force-dynamic';
 
 // GET /api/admin/donations - Get all donations
 export async function GET(request: NextRequest) {
   try {
     // Authenticate and check if user is admin
     const user = getUserFromRequest(request);
-    
+
     if (!user || user.role !== 'admin') {
       return NextResponse.json(
         { error: 'Unauthorized - Admin access required' },
