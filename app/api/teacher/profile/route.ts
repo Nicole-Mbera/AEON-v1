@@ -1,38 +1,24 @@
 import { NextResponse } from 'next/server';
-import db from '@/lib/db';
 import { getUserFromRequest } from '@/lib/auth';
+import db from '@/lib/db';
 
-// GET /api/teacher/profile
+// GET /api/teacher/profile - Get current teacher profile
 export async function GET(request: Request) {
   try {
     const currentUser = getUserFromRequest(request);
 
     if (!currentUser) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
     }
 
-    if (currentUser.role !== 'teacher') {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
-
-    // Get teacher profile
-    const teacher = db.prepare(`
-      SELECT 
-        t.id,
-        t.user_id,
-        t.full_name,
-        t.specialization,
-        t.bio,
-        t.years_of_experience,
-        t.phone,
-        t.profile_picture,
-        t.average_rating,
-        t.total_reviews,
-        u.email
-      FROM teachers t
-      JOIN users u ON t.user_id = u.id
-      WHERE t.user_id = ?
-    `).get(currentUser.userId) as any;
+    const teacherRes = await db.execute({
+      sql: `SELECT * FROM teachers WHERE user_id = ?`,
+      args: [currentUser.userId]
+    });
+    const teacher = teacherRes.rows[0];
 
     if (!teacher) {
       return NextResponse.json(
@@ -43,7 +29,7 @@ export async function GET(request: Request) {
 
     return NextResponse.json({
       success: true,
-      profile: teacher,
+      data: teacher,
     });
   } catch (error) {
     console.error('Get teacher profile error:', error);
@@ -54,49 +40,79 @@ export async function GET(request: Request) {
   }
 }
 
-// PATCH /api/teacher/profile
-export async function PATCH(request: Request) {
+// PUT /api/teacher/profile - Update teacher profile
+export async function PUT(request: Request) {
   try {
     const currentUser = getUserFromRequest(request);
 
     if (!currentUser) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    if (currentUser.role !== 'teacher') {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
     }
 
     const body = await request.json();
-    const { full_name, specialization, bio, years_of_experience, phone, profile_picture } = body;
+    const {
+      full_name,
+      phone,
+      specialization,
+      bio,
+      years_of_experience,
+      institution_name,
+      license_number,
+      country,
+      mission
+    } = body;
 
-    // Update teacher profile
-    const updateStmt = db.prepare(`
-      UPDATE teachers
-      SET 
-        full_name = COALESCE(?, full_name),
-        specialization = COALESCE(?, specialization),
-        bio = COALESCE(?, bio),
-        years_of_experience = COALESCE(?, years_of_experience),
-        phone = COALESCE(?, phone),
-        profile_picture = COALESCE(?, profile_picture)
-      WHERE user_id = ?
-    `);
+    // Check if teacher profile exists
+    const teacherRes = await db.execute({
+      sql: 'SELECT id FROM teachers WHERE user_id = ?',
+      args: [currentUser.userId]
+    });
+    const teacher = teacherRes.rows[0];
 
-    updateStmt.run(
-      full_name || null,
-      specialization || null,
-      bio || null,
-      years_of_experience || null,
-      phone || null,
-      profile_picture || null,
-      currentUser.userId
-    );
+    if (teacher) {
+      // Update
+      await db.execute({
+        sql: `UPDATE teachers SET
+              full_name = COALESCE(?, full_name),
+              phone = COALESCE(?, phone),
+              specialization = COALESCE(?, specialization),
+              bio = COALESCE(?, bio),
+              years_of_experience = COALESCE(?, years_of_experience),
+              institution_name = COALESCE(?, institution_name),
+              license_number = COALESCE(?, license_number),
+              country = COALESCE(?, country),
+              mission = COALESCE(?, mission)
+            WHERE user_id = ?`,
+        args: [
+          full_name, phone, specialization, bio, years_of_experience,
+          institution_name, license_number, country, mission,
+          currentUser.userId
+        ]
+      });
+    } else {
+      // Create (Should ideally happen at registration, but fallback here)
+      await db.execute({
+        sql: `INSERT INTO teachers (
+              user_id, full_name, phone, specialization, bio, 
+              years_of_experience, institution_name, license_number, 
+              country, mission
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        args: [
+          currentUser.userId, full_name, phone, specialization, bio,
+          years_of_experience, institution_name, license_number,
+          country, mission
+        ]
+      });
+    }
 
     return NextResponse.json({
       success: true,
-      message: 'Profile updated successfully',
+      message: 'Profile updated successfully'
     });
+
   } catch (error) {
     console.error('Update teacher profile error:', error);
     return NextResponse.json(

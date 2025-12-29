@@ -6,7 +6,7 @@ import db from '@/lib/db';
 export async function GET(request: Request) {
   try {
     const currentUser = getUserFromRequest(request);
-    
+
     if (!currentUser || !hasRole(currentUser, 'admin')) {
       return NextResponse.json(
         { error: 'Unauthorized. Admin access required.' },
@@ -58,7 +58,8 @@ export async function GET(request: Request) {
     query += ' ORDER BY t.created_at DESC LIMIT ? OFFSET ?';
     params.push(limit, offset);
 
-    const testimonials = db.prepare(query).all(...params);
+    const testimonialsRes = await db.execute({ sql: query, args: params });
+    const testimonials = testimonialsRes.rows;
 
     // Get total count
     let countQuery = 'SELECT COUNT(*) as count FROM testimonials WHERE 1=1';
@@ -70,7 +71,8 @@ export async function GET(request: Request) {
       countQuery += ' AND is_approved = 1';
     }
 
-    const totalCount = (db.prepare(countQuery).get(...countParams) as any).count;
+    const countRes = await db.execute({ sql: countQuery, args: countParams });
+    const totalCount = (countRes.rows[0] as any).count;
 
     return NextResponse.json({
       success: true,

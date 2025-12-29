@@ -10,18 +10,18 @@ export async function POST(
   try {
     // Authenticate user
     const currentUser = getUserFromRequest(request);
-    
+
     if (!currentUser || !hasRole(currentUser, 'patient')) {
       return NextResponse.json(
         { error: 'Unauthorized. Patient access required.' },
         { status: 403 }
       );
     }
-    
+
     const { id } = await params;
     const consultationId = parseInt(id);
     const { patient_username } = await request.json();
-    
+
     // Validate input
     if (!patient_username) {
       return NextResponse.json(
@@ -29,63 +29,77 @@ export async function POST(
         { status: 400 }
       );
     }
-    
+
     // Get current patient ID
-    const currentPatientQuery = db.prepare('SELECT id FROM patients WHERE user_id = ?');
-    const currentPatient = currentPatientQuery.get(currentUser.userId) as any;
-    
+    const currentPatientRes = await db.execute({
+      sql: 'SELECT id FROM students WHERE user_id = ?',
+      args: [currentUser.userId]
+    });
+    const currentPatient = currentPatientRes.rows[0] as unknown as { id: number } | undefined;
+
     if (!currentPatient) {
       return NextResponse.json(
         { error: 'Patient profile not found' },
         { status: 404 }
       );
     }
-    
+
     // Verify consultation exists and belongs to current patient
-    const consultationCheck = db.prepare(`
+    const consultationCheckRes = await db.execute({
+      sql: `
       SELECT id FROM consultations
-      WHERE id = ? AND patient_id = ? AND status = 'scheduled'
-    `);
-    
-    if (!consultationCheck.get(consultationId, currentPatient.id)) {
+      WHERE id = ? AND student_id = ? AND status = 'scheduled'
+    `,
+      args: [consultationId, currentPatient.id]
+    });
+
+    if (consultationCheckRes.rows.length === 0) {
       return NextResponse.json(
         { error: 'Consultation not found or you do not have permission' },
         { status: 404 }
       );
     }
-    
+
     // Find invited patient by username
-    const invitedPatientQuery = db.prepare('SELECT id FROM patients WHERE username = ?');
-    const invitedPatient = invitedPatientQuery.get(patient_username) as any;
-    
+    const invitedPatientRes = await db.execute({
+      sql: 'SELECT id FROM students WHERE username = ?',
+      args: [patient_username]
+    });
+    const invitedPatient = invitedPatientRes.rows[0] as unknown as { id: number } | undefined;
+
     if (!invitedPatient) {
       return NextResponse.json(
         { error: 'Patient not found' },
         { status: 404 }
       );
     }
-    
+
     // Check if already invited
-    const existingInvite = db.prepare(`
+    const existingInviteRes = await db.execute({
+      sql: `
       SELECT id FROM consultation_attendees
       WHERE consultation_id = ? AND patient_id = ?
-    `).get(consultationId, invitedPatient.id);
-    
+    `,
+      args: [consultationId, invitedPatient.id]
+    });
+    const existingInvite = existingInviteRes.rows[0];
+
     if (existingInvite) {
       return NextResponse.json(
         { error: 'Patient already invited to this consultation' },
         { status: 409 }
       );
     }
-    
+
     // Create invitation
-    const insertQuery = db.prepare(`
+    await db.execute({
+      sql: `
       INSERT INTO consultation_attendees (consultation_id, patient_id, invitation_status)
       VALUES (?, ?, 'pending')
-    `);
-    
-    insertQuery.run(consultationId, invitedPatient.id);
-    
+    `,
+      args: [consultationId, invitedPatient.id]
+    });
+
     return NextResponse.json({
       success: true,
       message: 'Invitation sent successfully',
@@ -104,27 +118,31 @@ export async function GET(request: Request) {
   try {
     // Authenticate user
     const currentUser = getUserFromRequest(request);
-    
+
     if (!currentUser || !hasRole(currentUser, 'patient')) {
       return NextResponse.json(
         { error: 'Unauthorized. Patient access required.' },
         { status: 403 }
       );
     }
-    
+
     // Get patient ID
-    const patientQuery = db.prepare('SELECT id FROM patients WHERE user_id = ?');
-    const patient = patientQuery.get(currentUser.userId) as any;
-    
+    const patientRes = await db.execute({
+      sql: 'SELECT id FROM students WHERE user_id = ?',
+      args: [currentUser.userId]
+    });
+    const patient = patientRes.rows[0] as unknown as { id: number } | undefined;
+
     if (!patient) {
       return NextResponse.json(
         { error: 'Patient profile not found' },
         { status: 404 }
       );
     }
-    
+
     // Get pending invitations
-    const invitesQuery = db.prepare(`
+    const invitesRes = await db.execute({
+      sql: `
       SELECT 
         ca.id,
         ca.invitation_status,
@@ -138,14 +156,16 @@ export async function GET(request: Request) {
         p.username as invited_by
       FROM consultation_attendees ca
       JOIN consultations c ON ca.consultation_id = c.id
-      JOIN teachers hp ON c.professional_id = hp.id
-      JOIN patients p ON c.patient_id = p.id
+      JOIN teachers hp ON c.teacher_id = hp.id
+      JOIN students p ON c.student_id = p.id
       WHERE ca.patient_id = ? AND ca.invitation_status = 'pending'
       ORDER BY ca.invited_at DESC
-    `);
-    
-    const invites = invitesQuery.all(patient.id);
-    
+    `,
+      args: [patient.id]
+    });
+
+    const invites = invitesRes.rows;
+
     return NextResponse.json({
       success: true,
       data: invites,

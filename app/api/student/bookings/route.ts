@@ -6,6 +6,7 @@ import { sendEmail } from '@/lib/email';
 // API for students to book sessions with teachers
 
 // GET - Get available slots for a teacher
+// GET - Get available slots for a teacher
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -22,7 +23,8 @@ export async function GET(request: NextRequest) {
     // Get teacher's availability for the given day
     const dayOfWeek = date ? new Date(date).getDay() : new Date().getDay();
 
-    const availableSlots = db.prepare(`
+    const availableSlotsRes = await db.execute({
+      sql: `
       SELECT 
         id,
         day_of_week,
@@ -34,18 +36,25 @@ export async function GET(request: NextRequest) {
         AND day_of_week = ?
         AND is_available = 1
       ORDER BY start_time
-    `).all(teacherId, dayOfWeek);
+    `,
+      args: [teacherId, dayOfWeek]
+    });
+    const availableSlots = availableSlotsRes.rows;
 
     // Get existing bookings for this date if provided
     let existingBookings: any[] = [];
     if (date) {
-      existingBookings = db.prepare(`
+      const existingBookingsRes = await db.execute({
+        sql: `
         SELECT scheduled_time, duration_minutes
         FROM sessions
         WHERE teacher_id = ?
           AND date(scheduled_date) = date(?)
           AND status IN ('scheduled', 'confirmed')
-      `).all(teacherId, date);
+      `,
+        args: [teacherId, date]
+      });
+      existingBookings = existingBookingsRes.rows;
     }
 
     // Generate available time slots (15-minute intervals)
@@ -118,12 +127,16 @@ export async function POST(request: NextRequest) {
     }
 
     // Get student info
-    const student = db.prepare(`
+    const studentRes = await db.execute({
+      sql: `
       SELECT p.id, p.full_name, u.email
       FROM students p
       JOIN users u ON p.user_id = u.id
       WHERE p.user_id = ?
-    `).get(currentUser.userId) as any;
+    `,
+      args: [currentUser.userId]
+    });
+    const student = studentRes.rows[0] as unknown as { id: number; full_name: string; email: string } | undefined;
 
     if (!student) {
       return NextResponse.json(
@@ -133,12 +146,16 @@ export async function POST(request: NextRequest) {
     }
 
     // Get teacher info
-    const teacher = db.prepare(`
+    const teacherRes = await db.execute({
+      sql: `
       SELECT hp.id, hp.full_name, u.email
       FROM teachers hp
       JOIN users u ON hp.user_id = u.id
       WHERE hp.id = ?
-    `).get(teacher_id) as any;
+    `,
+      args: [teacher_id]
+    });
+    const teacher = teacherRes.rows[0] as unknown as { id: number; full_name: string; email: string } | undefined;
 
     if (!teacher) {
       return NextResponse.json(
@@ -148,13 +165,17 @@ export async function POST(request: NextRequest) {
     }
 
     // Check for conflicts
-    const conflict = db.prepare(`
+    const conflictRes = await db.execute({
+      sql: `
       SELECT id FROM sessions
       WHERE teacher_id = ?
         AND date(scheduled_date) = date(?)
         AND scheduled_time = ?
         AND status IN ('scheduled', 'confirmed')
-    `).get(teacher_id, scheduled_date, scheduled_time);
+    `,
+      args: [teacher_id, scheduled_date, scheduled_time]
+    });
+    const conflict = conflictRes.rows[0];
 
     if (conflict) {
       return NextResponse.json(
@@ -168,7 +189,8 @@ export async function POST(request: NextRequest) {
     const jitsiLink = `https://meet.jit.si/${sessionId}`;
 
     // Create booking with Jitsi link
-    const result = db.prepare(`
+    const result = await db.execute({
+      sql: `
       INSERT INTO sessions (
         student_id,
         teacher_id,
@@ -180,15 +202,17 @@ export async function POST(request: NextRequest) {
         notes,
         created_at
       ) VALUES (?, ?, ?, ?, ?, 'scheduled', ?, ?, CURRENT_TIMESTAMP)
-    `).run(
-      student.id,
-      teacher_id,
-      scheduled_date,
-      scheduled_time,
-      duration_minutes || 15,
-      jitsiLink,
-      notes || ''
-    );
+    `,
+      args: [
+        student.id,
+        teacher_id,
+        scheduled_date,
+        scheduled_time,
+        duration_minutes || 15,
+        jitsiLink,
+        notes || ''
+      ]
+    });
 
     // Send confirmation email to student
     try {
@@ -247,7 +271,7 @@ export async function POST(request: NextRequest) {
       success: true,
       message: 'Session booked successfully',
       data: {
-        id: result.lastInsertRowid,
+        id: Number(result.lastInsertRowid),
       },
     });
   } catch (error) {
@@ -282,7 +306,8 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Get booking details
-    const booking = db.prepare(`
+    const bookingRes = await db.execute({
+      sql: `
       SELECT 
         c.*,
         p.full_name as student_name,
@@ -290,12 +315,21 @@ export async function DELETE(request: NextRequest) {
         hp.full_name as teacher_name,
         u2.email as teacher_email
       FROM sessions c
-      JOIN students p ON c.student_id = p.user_id
+      JOIN students p ON c.student_id = p.id
       JOIN users u ON p.user_id = u.id
       JOIN teachers hp ON c.teacher_id = hp.id
       JOIN users u2 ON hp.user_id = u2.id
-      WHERE c.id = ? AND c.student_id = ?
-    `).get(bookingId, currentUser.userId) as any;
+      WHERE c.id = ? AND c.student_id = (SELECT id FROM students WHERE user_id = ?)
+    `,
+      args: [bookingId, currentUser.userId]
+    });
+    const booking = bookingRes.rows[0] as unknown as {
+      student_name: string;
+      teacher_name: string;
+      teacher_email: string;
+      scheduled_date: string;
+      scheduled_time: string;
+    } | undefined;
 
     if (!booking) {
       return NextResponse.json(
@@ -305,7 +339,10 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Update status to cancelled
-    db.prepare('UPDATE sessions SET status = ? WHERE id = ?').run('cancelled', bookingId);
+    await db.execute({
+      sql: 'UPDATE sessions SET status = ? WHERE id = ?',
+      args: ['cancelled', bookingId]
+    });
 
     // Send cancellation email to teacher
     try {

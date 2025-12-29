@@ -22,13 +22,14 @@ interface Consultation {
  * Check and send 24-hour reminder emails
  */
 export async function send24HourReminders() {
-  
+
   // Get sessions that start in 23-25 hours and haven't received 24h reminder
   const now = new Date();
   const twentyFourHoursFromNow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
   const twentyThreeHoursFromNow = new Date(now.getTime() + 23 * 60 * 60 * 1000);
-  
-  const sessions = db.prepare(`
+
+  const sessionsRes = await db.execute({
+    sql: `
     SELECT 
       c.id,
       c.student_id,
@@ -52,7 +53,10 @@ export async function send24HourReminders() {
     WHERE c.status = 'scheduled'
     AND c.start_time BETWEEN ? AND ?
     AND c.reminder_24h_sent = 0
-  `).all(twentyThreeHoursFromNow.toISOString(), twentyFourHoursFromNow.toISOString()) as Consultation[];
+  `,
+    args: [twentyThreeHoursFromNow.toISOString(), twentyFourHoursFromNow.toISOString()]
+  });
+  const sessions = sessionsRes.rows as unknown as Consultation[];
 
   console.log(`Found ${sessions.length} sessions needing 24h reminders`);
 
@@ -62,15 +66,15 @@ export async function send24HourReminders() {
       const template = emailTemplates.reminder24h({
         studentName: consultation.student_name,
         mentorName: consultation.professional_name,
-        date: startTime.toLocaleDateString('en-US', { 
-          weekday: 'long', 
-          year: 'numeric', 
-          month: 'long', 
-          day: 'numeric' 
+        date: startTime.toLocaleDateString('en-US', {
+          weekday: 'long',
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric'
         }),
-        time: startTime.toLocaleTimeString('en-US', { 
-          hour: '2-digit', 
-          minute: '2-digit' 
+        time: startTime.toLocaleTimeString('en-US', {
+          hour: '2-digit',
+          minute: '2-digit'
         }),
         meetingLink: consultation.meeting_link,
       });
@@ -82,29 +86,29 @@ export async function send24HourReminders() {
       const doctorTemplate = emailTemplates.reminder24h({
         studentName: consultation.student_name,
         mentorName: consultation.professional_name,
-        date: startTime.toLocaleDateString('en-US', { 
-          weekday: 'long', 
-          year: 'numeric', 
-          month: 'long', 
-          day: 'numeric' 
+        date: startTime.toLocaleDateString('en-US', {
+          weekday: 'long',
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric'
         }),
-        time: startTime.toLocaleTimeString('en-US', { 
-          hour: '2-digit', 
-          minute: '2-digit' 
+        time: startTime.toLocaleTimeString('en-US', {
+          hour: '2-digit',
+          minute: '2-digit'
         }),
         meetingLink: consultation.meeting_link,
       });
       const doctorResult = await sendEmail(consultation.professional_email, doctorTemplate);
 
       if (patientResult.success) {
-        db.prepare('UPDATE sessions SET reminder_24h_sent = 1 WHERE id = ?').run(consultation.id);
+        await db.execute({ sql: 'UPDATE sessions SET reminder_24h_sent = 1 WHERE id = ?', args: [consultation.id] });
         console.log(`24h reminder sent to patient ${consultation.student_email} for consultation #${consultation.id}`);
       } else {
         console.error(`Failed to send 24h reminder to patient for consultation #${consultation.id}: ${patientResult.error}`);
       }
 
       if (doctorResult.success) {
-        db.prepare('UPDATE sessions SET doctor_reminder_24h_sent = 1 WHERE id = ?').run(consultation.id);
+        await db.execute({ sql: 'UPDATE sessions SET doctor_reminder_24h_sent = 1 WHERE id = ?', args: [consultation.id] });
         console.log(`24h reminder sent to doctor ${consultation.professional_email} for consultation #${consultation.id}`);
       } else {
         console.error(`Failed to send 24h reminder to doctor for consultation #${consultation.id}: ${doctorResult.error}`);
@@ -125,8 +129,9 @@ export async function send1HourReminders() {
   const now = new Date();
   const oneHourFromNow = new Date(now.getTime() + 65 * 60 * 1000);
   const fiftyFiveMinutesFromNow = new Date(now.getTime() + 55 * 60 * 1000);
-  
-  const sessions = db.prepare(`
+
+  const sessionsRes = await db.execute({
+    sql: `
     SELECT 
       c.id,
       c.student_id,
@@ -150,7 +155,10 @@ export async function send1HourReminders() {
     WHERE c.status = 'scheduled'
     AND c.start_time BETWEEN ? AND ?
     AND c.reminder_1h_sent = 0
-  `).all(fiftyFiveMinutesFromNow.toISOString(), oneHourFromNow.toISOString()) as Consultation[];
+  `,
+    args: [fiftyFiveMinutesFromNow.toISOString(), oneHourFromNow.toISOString()]
+  });
+  const sessions = sessionsRes.rows as unknown as Consultation[];
 
   console.log(`Found ${sessions.length} sessions needing 1h reminders`);
 
@@ -160,9 +168,9 @@ export async function send1HourReminders() {
       const template = emailTemplates.reminder1h({
         studentName: consultation.student_name,
         mentorName: consultation.professional_name,
-        time: startTime.toLocaleTimeString('en-US', { 
-          hour: '2-digit', 
-          minute: '2-digit' 
+        time: startTime.toLocaleTimeString('en-US', {
+          hour: '2-digit',
+          minute: '2-digit'
         }),
         meetingLink: consultation.meeting_link,
       });
@@ -174,23 +182,23 @@ export async function send1HourReminders() {
       const doctorTemplate = emailTemplates.reminder1h({
         studentName: consultation.student_name,
         mentorName: consultation.professional_name,
-        time: startTime.toLocaleTimeString('en-US', { 
-          hour: '2-digit', 
-          minute: '2-digit' 
+        time: startTime.toLocaleTimeString('en-US', {
+          hour: '2-digit',
+          minute: '2-digit'
         }),
         meetingLink: consultation.meeting_link,
       });
       const doctorResult = await sendEmail(consultation.professional_email, doctorTemplate);
 
       if (patientResult.success) {
-        db.prepare('UPDATE sessions SET reminder_1h_sent = 1 WHERE id = ?').run(consultation.id);
+        await db.execute({ sql: 'UPDATE sessions SET reminder_1h_sent = 1 WHERE id = ?', args: [consultation.id] });
         console.log(`1h reminder sent to patient ${consultation.student_email} for consultation #${consultation.id}`);
       } else {
         console.error(`Failed to send 1h reminder to patient for consultation #${consultation.id}: ${patientResult.error}`);
       }
 
       if (doctorResult.success) {
-        db.prepare('UPDATE sessions SET doctor_reminder_1h_sent = 1 WHERE id = ?').run(consultation.id);
+        await db.execute({ sql: 'UPDATE sessions SET doctor_reminder_1h_sent = 1 WHERE id = ?', args: [consultation.id] });
         console.log(`1h reminder sent to doctor ${consultation.professional_email} for consultation #${consultation.id}`);
       } else {
         console.error(`Failed to send 1h reminder to doctor for consultation #${consultation.id}: ${doctorResult.error}`);
@@ -207,8 +215,9 @@ export async function send1HourReminders() {
  * Send confirmation email immediately after booking
  */
 export async function sendConfirmationEmail(consultationId: number) {
-  
-  const consultation = db.prepare(`
+
+  const consultationRes = await db.execute({
+    sql: `
     SELECT 
       c.id,
       c.student_id,
@@ -226,7 +235,10 @@ export async function sendConfirmationEmail(consultationId: number) {
     JOIN teachers hp ON c.professional_id = hp.id
     JOIN users du ON hp.user_id = du.id
     WHERE c.id = ?
-  `).get(consultationId) as Consultation | undefined;
+  `,
+    args: [consultationId]
+  });
+  const consultation = consultationRes.rows[0] as unknown as Consultation | undefined;
 
   if (!consultation) {
     throw new Error(`Consultation #${consultationId} not found`);
@@ -236,35 +248,35 @@ export async function sendConfirmationEmail(consultationId: number) {
   const template = emailTemplates.confirmation({
     studentName: consultation.student_name,
     mentorName: consultation.professional_name,
-    date: startTime.toLocaleDateString('en-US', { 
-      weekday: 'long', 
-      year: 'numeric', 
-      month: 'long', 
-      day: 'numeric' 
+    date: startTime.toLocaleDateString('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
     }),
-    time: startTime.toLocaleTimeString('en-US', { 
-      hour: '2-digit', 
-      minute: '2-digit' 
+    time: startTime.toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit'
     }),
     meetingLink: consultation.meeting_link,
   });
 
   // Send to student
   const patientResult = await sendEmail(consultation.student_email, template);
-  
+
   // Send to teacher
   const doctorTemplate = emailTemplates.confirmation({
     studentName: consultation.student_name,
     mentorName: consultation.professional_name,
-    date: startTime.toLocaleDateString('en-US', { 
-      weekday: 'long', 
-      year: 'numeric', 
-      month: 'long', 
-      day: 'numeric' 
+    date: startTime.toLocaleDateString('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
     }),
-    time: startTime.toLocaleTimeString('en-US', { 
-      hour: '2-digit', 
-      minute: '2-digit' 
+    time: startTime.toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit'
     }),
     meetingLink: consultation.meeting_link,
   });
@@ -285,13 +297,13 @@ export async function sendConfirmationEmail(consultationId: number) {
  */
 export async function runEmailCron() {
   console.log('Running email reminder cron job...');
-  
+
   try {
     const results24h = await send24HourReminders();
     const results1h = await send1HourReminders();
-    
+
     console.log(`Email cron completed: ${results24h.processed} 24h reminders, ${results1h.processed} 1h reminders`);
-    
+
     return {
       success: true,
       reminders24h: results24h.processed,

@@ -36,7 +36,7 @@ export async function POST(request: Request) {
             sql: 'SELECT id FROM students WHERE user_id = ?',
             args: [currentUser.userId]
         });
-        const student = studentRes.rows[0] as { id: number } | undefined;
+        const student = studentRes.rows[0] as unknown as { id: number } | undefined;
 
         if (!student) {
             return NextResponse.json(

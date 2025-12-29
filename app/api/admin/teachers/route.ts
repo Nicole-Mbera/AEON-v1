@@ -50,11 +50,11 @@ export async function GET(request: Request) {
 
     query += ' ORDER BY hp.id DESC';
 
-    const teachers = db.prepare(query).all();
+    const teachersRes = await db.execute({ sql: query, args: [] });
 
     return NextResponse.json({
       success: true,
-      data: teachers,
+      data: teachersRes.rows,
     });
   } catch (error) {
     console.error('Get teachers error:', error);

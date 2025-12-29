@@ -1,52 +1,60 @@
+
 import { NextResponse } from 'next/server';
 import { getUserFromRequest, hasRole } from '@/lib/auth';
 import db from '@/lib/db';
 
-// get testimonials pending approval for system admin
 export async function GET(request: Request) {
   try {
     const currentUser = getUserFromRequest(request);
-    
+
     if (!currentUser || !hasRole(currentUser, 'admin')) {
       return NextResponse.json(
-        { error: 'Unauthorized. System Admin access required.' },
+        { error: 'Unauthorized. Admin access required.' },
         { status: 403 }
       );
     }
-    
+
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status') || 'pending';
-    
-    const testimonials = db.prepare(`
+
+    let query = `
       SELECT 
         t.id,
         t.content,
         t.rating,
-        t.approval_status,
-        t.rejection_reason,
         t.created_at,
         t.user_type,
         u.email,
         CASE 
-          WHEN t.user_type = 'patient' THEN p.username
+          WHEN t.user_type = 'student' THEN s.full_name
           WHEN t.user_type = 'teacher' THEN hp.full_name
-          WHEN t.user_type = 'admin' THEN ia.full_name
-        END as user_name
+        END as full_name
       FROM testimonials t
       JOIN users u ON t.user_id = u.id
-      LEFT JOIN patients p ON t.user_type = 'patient' AND t.user_id = p.user_id
-      LEFT JOIN teachers hp ON t.user_type = 'teacher' AND t.user_id = hp.user_id
-      LEFT JOIN admins ia ON t.user_type = 'admin' AND t.user_id = ia.user_id
-      WHERE t.approval_status = ?
-      ORDER BY t.created_at DESC
-    `).all(status);
-    
+      LEFT JOIN students s ON t.user_type = 'student' AND u.id = s.user_id
+      LEFT JOIN teachers hp ON t.user_type = 'teacher' AND u.id = hp.user_id
+      WHERE 1=1
+    `;
+
+    if (status === 'pending') {
+      query += ' AND t.is_approved = 0';
+    } else if (status === 'approved') {
+      query += ' AND t.is_approved = 1';
+    }
+
+    query += ' ORDER BY t.created_at DESC';
+
+    const testimonialsRes = await db.execute({
+      sql: query,
+      args: []
+    });
+
     return NextResponse.json({
       success: true,
-      data: testimonials,
+      data: testimonialsRes.rows,
     });
   } catch (error) {
-    console.error('Get pending testimonials error:', error);
+    console.error('Get approve testimonials error:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
@@ -54,89 +62,94 @@ export async function GET(request: Request) {
   }
 }
 
-// approve, reject, or feature testimonial
 export async function POST(request: Request) {
   try {
     const currentUser = getUserFromRequest(request);
-    
-    if (!currentUser || currentUser.role !== 'admin') {
+
+    if (!currentUser || !hasRole(currentUser, 'admin')) {
       return NextResponse.json(
-        { error: 'Unauthorized. System Admin access required.' },
+        { error: 'Unauthorized. Admin access required.' },
         { status: 403 }
       );
     }
-    
-    const { id: testimonial_id, action, is_featured, rejection_reason } = await request.json();
-    
-    if (!testimonial_id || !action || !['approve', 'reject', 'feature'].includes(action)) {
+
+    const { testimonial_id, action } = await request.json();
+
+    if (!testimonial_id || !action) {
       return NextResponse.json(
-        { error: 'Testimonial ID and valid action (approve/reject/feature) are required' },
+        { error: 'Missing required fields' },
         { status: 400 }
       );
     }
-    
-    const testimonial = db.prepare('SELECT * FROM testimonials WHERE id = ?').get(testimonial_id) as any;
-    
+
+    const testimonialRes = await db.execute({
+      sql: 'SELECT * FROM testimonials WHERE id = ?',
+      args: [testimonial_id]
+    });
+    const testimonial = testimonialRes.rows[0];
+
     if (!testimonial) {
       return NextResponse.json(
         { error: 'Testimonial not found' },
         { status: 404 }
       );
     }
-    
+
     if (action === 'approve') {
-      db.prepare(`
-        UPDATE testimonials 
-        SET approval_status = 'approved',
-            approved_by = ?,
-            approved_at = CURRENT_TIMESTAMP
-        WHERE id = ?
-      `).run(currentUser.userId, testimonial_id);
-      
+      await db.execute({
+        sql: `UPDATE testimonials SET is_approved = 1 WHERE id = ?`,
+        args: [testimonial_id]
+      });
+
+      // Log activity
+      await db.execute({
+        sql: `INSERT INTO user_activity (user_id, activity_type, details)
+           VALUES (?, 'testimonial_approved', ?)`,
+        args: [currentUser.userId, JSON.stringify({ testimonial_id })]
+      });
+
       return NextResponse.json({
         success: true,
-        message: 'Testimonial approved successfully',
+        message: 'Testimonial approved',
       });
     } else if (action === 'reject') {
-      if (!rejection_reason) {
-        return NextResponse.json(
-          { error: 'Rejection reason is required' },
-          { status: 400 }
-        );
-      }
-      
-      db.prepare(`
-        UPDATE testimonials 
-        SET approval_status = 'rejected',
-            rejection_reason = ?,
-            approved_by = ?,
-            approved_at = CURRENT_TIMESTAMP
-        WHERE id = ?
-      `).run(rejection_reason, currentUser.userId, testimonial_id);
-      
+      // Just delete for now, or could have a 'rejected' status
+      await db.execute({
+        sql: `DELETE FROM testimonials WHERE id = ?`,
+        args: [testimonial_id]
+      });
+
+      await db.execute({
+        sql: `INSERT INTO user_activity (user_id, activity_type, details)
+            VALUES (?, 'testimonial_rejected', ?)`,
+        args: [currentUser.userId, JSON.stringify({ testimonial_id })]
+      });
+
       return NextResponse.json({
         success: true,
-        message: 'Testimonial rejected',
+        message: 'Testimonial rejected and removed',
       });
     } else if (action === 'feature') {
-      // only feature approved testimonials
-      if (testimonial.approval_status !== 'approved') {
-        return NextResponse.json(
-          { error: 'Can only feature approved testimonials' },
-          { status: 400 }
-        );
-      }
-      
-      db.prepare('UPDATE testimonials SET is_featured = ? WHERE id = ?')
-        .run(is_featured ? 1 : 0, testimonial_id);
-      
-      return NextResponse.json({
-        success: true,
-        message: is_featured ? 'Testimonial featured' : 'Testimonial unfeatured',
+      await db.execute({
+        sql: 'UPDATE testimonials SET is_featured = 1 WHERE id = ?',
+        args: [testimonial_id]
       });
+      return NextResponse.json({ success: true, message: 'Testimonial featured' });
+    } else if (action === 'unfeature') {
+      await db.execute({
+        sql: 'UPDATE testimonials SET is_featured = 0 WHERE id = ?',
+        args: [testimonial_id]
+      });
+      return NextResponse.json({ success: true, message: 'Testimonial unfeatured' });
     }
+
+    return NextResponse.json(
+      { error: 'Invalid action' },
+      { status: 400 }
+    );
+
   } catch (error) {
-    console.error('Manage testimonial error:', error);
+    console.error('Approve testimonial error:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

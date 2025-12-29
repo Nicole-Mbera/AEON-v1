@@ -1,85 +1,80 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { getUserFromRequest } from '@/lib/auth';
-import db from '@/lib/db';
-import { sendEmail } from '@/lib/email';
 
-// GET - Get all bookings for teacher
-export async function GET(request: NextRequest) {
+import { NextResponse } from 'next/server';
+import { getUserFromRequest, hasRole } from '@/lib/auth';
+import db from '@/lib/db';
+
+export async function GET(request: Request) {
   try {
     const currentUser = getUserFromRequest(request);
-    
-    if (!currentUser || currentUser.role !== 'teacher') {
+
+    if (!currentUser || !hasRole(currentUser, 'teacher')) {
       return NextResponse.json(
         { error: 'Unauthorized. Teacher access required.' },
         { status: 403 }
       );
     }
 
-    // Get teacher_id
-    const professional = db.prepare(
-      'SELECT id, full_name FROM teachers WHERE user_id = ?'
-    ).get(currentUser.userId) as { id: number; full_name: string } | undefined;
+    // Get teacher ID
+    const professionalRes = await db.execute({
+      sql: 'SELECT id FROM teachers WHERE user_id = ?',
+      args: [currentUser.userId]
+    });
+    const professional = professionalRes.rows[0] as unknown as { id: number } | undefined;
 
     if (!professional) {
       return NextResponse.json(
-        { error: 'Professional profile not found' },
+        { error: 'Teacher profile not found' },
         { status: 404 }
       );
     }
 
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status');
-    const startDate = searchParams.get('start_date');
-    const endDate = searchParams.get('end_date');
+    const date = searchParams.get('date');
 
     let query = `
       SELECT 
-        c.id,
-        c.scheduled_date,
-        c.scheduled_time,
-        c.duration_minutes,
-        c.meeting_link,
-        c.status,
-        c.notes,
-        c.created_at,
+        s.id,
+        s.scheduled_date,
+        s.scheduled_time,
+        s.status,
+        s.meeting_link,
+        s.notes,
         p.full_name as student_name,
-        p.username as student_username,
-        p.profile_picture as student_picture,
         p.phone as student_phone,
         u.email as student_email
-      FROM sessions c
-      JOIN students p ON c.student_id = p.user_id
+      FROM sessions s
+      JOIN students p ON s.student_id = p.id
       JOIN users u ON p.user_id = u.id
-      WHERE c.teacher_id = ?
+      WHERE s.teacher_id = ?
     `;
 
     const params: any[] = [professional.id];
 
-    if (status) {
-      query += ' AND c.status = ?';
+    if (status && status !== 'all') {
+      query += ' AND s.status = ?';
       params.push(status);
     }
 
-    if (startDate) {
-      query += ' AND date(c.scheduled_date) >= date(?)';
-      params.push(startDate);
+    if (date) {
+      query += ' AND s.scheduled_date = ?';
+      params.push(date);
     }
 
-    if (endDate) {
-      query += ' AND date(c.scheduled_date) <= date(?)';
-      params.push(endDate);
-    }
+    query += ' ORDER BY s.scheduled_date DESC, s.scheduled_time ASC';
 
-    query += ' ORDER BY c.scheduled_date DESC, c.scheduled_time DESC';
-
-    const bookings = db.prepare(query).all(...params);
+    const bookingsRes = await db.execute({
+      sql: query,
+      args: params
+    });
 
     return NextResponse.json({
       success: true,
-      data: bookings,
+      data: bookingsRes.rows,
     });
+
   } catch (error) {
-    console.error('Get bookings error:', error);
+    console.error('Get teacher bookings error:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
@@ -87,19 +82,19 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// PATCH - Update booking status (confirm, cancel, complete)
-export async function PATCH(request: NextRequest) {
+// Update booking status (confirm, cancel, complete)
+export async function PATCH(request: Request) {
   try {
     const currentUser = getUserFromRequest(request);
-    
-    if (!currentUser || currentUser.role !== 'teacher') {
+
+    if (!currentUser || !hasRole(currentUser, 'teacher')) {
       return NextResponse.json(
         { error: 'Unauthorized. Teacher access required.' },
         { status: 403 }
       );
     }
 
-    const { bookingId, status, notes } = await request.json();
+    const { bookingId, status, meetingLink, notes } = await request.json();
 
     if (!bookingId || !status) {
       return NextResponse.json(
@@ -108,48 +103,37 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
-    const validStatuses = ['scheduled', 'confirmed', 'completed', 'cancelled', 'no_show'];
-    if (!validStatuses.includes(status)) {
-      return NextResponse.json(
-        { error: 'Invalid status' },
-        { status: 400 }
-      );
-    }
-
-    // Get teacher_id
-    const professional = db.prepare(
-      'SELECT id, full_name FROM teachers WHERE user_id = ?'
-    ).get(currentUser.userId) as { id: number; full_name: string } | undefined;
+    // Verify ownership
+    const professionalRes = await db.execute({
+      sql: 'SELECT id FROM teachers WHERE user_id = ?',
+      args: [currentUser.userId]
+    });
+    const professional = professionalRes.rows[0] as unknown as { id: number } | undefined;
 
     if (!professional) {
-      return NextResponse.json(
-        { error: 'Professional profile not found' },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: 'Teacher not found' }, { status: 404 });
     }
 
-    // Get booking details
-    const booking = db.prepare(`
-      SELECT 
-        c.*,
-        p.full_name as student_name,
-        u.email as student_email
-      FROM sessions c
-      JOIN students p ON c.student_id = p.user_id
-      JOIN users u ON p.user_id = u.id
-      WHERE c.id = ? AND c.teacher_id = ?
-    `).get(bookingId, professional.id) as any;
+    const bookingRes = await db.execute({
+      sql: `SELECT id FROM sessions WHERE id = ? AND teacher_id = ?`,
+      args: [bookingId, professional.id]
+    });
+    const booking = bookingRes.rows[0];
 
     if (!booking) {
       return NextResponse.json(
-        { error: 'Booking not found' },
+        { error: 'Booking not found or not authorized' },
         { status: 404 }
       );
     }
 
-    // Update booking
     let updateQuery = 'UPDATE sessions SET status = ?';
     const updateParams: any[] = [status];
+
+    if (meetingLink !== undefined) {
+      updateQuery += ', meeting_link = ?';
+      updateParams.push(meetingLink);
+    }
 
     if (notes !== undefined) {
       updateQuery += ', notes = ?';
@@ -159,37 +143,16 @@ export async function PATCH(request: NextRequest) {
     updateQuery += ' WHERE id = ?';
     updateParams.push(bookingId);
 
-    db.prepare(updateQuery).run(...updateParams);
-
-    // Send email notification to student
-    try {
-      const emailSubject = `Session ${status === 'confirmed' ? 'Confirmed' : status === 'cancelled' ? 'Cancelled' : 'Updated'} - ${professional.full_name}`;
-      const emailHtml = `
-        <h2>Session ${status === 'confirmed' ? 'Confirmed' : status === 'cancelled' ? 'Cancelled' : 'Updated'}</h2>
-        <p>Hello ${booking.student_name},</p>
-        <p>Your session with ${professional.full_name} has been <strong>${status}</strong>.</p>
-        <p><strong>Date:</strong> ${new Date(booking.scheduled_date).toLocaleDateString()}</p>
-        <p><strong>Time:</strong> ${booking.scheduled_time}</p>
-        <p><strong>Duration:</strong> ${booking.duration_minutes} minutes</p>
-        ${notes ? `<p><strong>Notes:</strong> ${notes}</p>` : ''}
-        ${booking.meeting_link && status !== 'cancelled' ? `<p><strong>Meeting Link:</strong> <a href="${booking.meeting_link}">${booking.meeting_link}</a></p>` : ''}
-        ${status === 'confirmed' ? '<p>We look forward to seeing you!</p>' : ''}
-        ${status === 'cancelled' ? '<p>If you have any questions, please contact us.</p>' : ''}
-      `;
-
-      await sendEmail(booking.student_email, {
-        subject: emailSubject,
-        html: emailHtml
-      });
-    } catch (emailError) {
-      console.error('Email notification error:', emailError);
-      // Don't fail the request if email fails
-    }
+    await db.execute({
+      sql: updateQuery,
+      args: updateParams
+    });
 
     return NextResponse.json({
       success: true,
-      message: 'Booking updated successfully',
+      message: `Booking ${status} successfully`,
     });
+
   } catch (error) {
     console.error('Update booking error:', error);
     return NextResponse.json(
@@ -199,12 +162,12 @@ export async function PATCH(request: NextRequest) {
   }
 }
 
-// DELETE - Cancel booking (teacher cancels)
-export async function DELETE(request: NextRequest) {
+// Cancel booking
+export async function DELETE(request: Request) {
   try {
     const currentUser = getUserFromRequest(request);
-    
-    if (!currentUser || currentUser.role !== 'teacher') {
+
+    if (!currentUser || !hasRole(currentUser, 'teacher')) {
       return NextResponse.json(
         { error: 'Unauthorized. Teacher access required.' },
         { status: 403 }
@@ -215,72 +178,41 @@ export async function DELETE(request: NextRequest) {
     const bookingId = searchParams.get('id');
 
     if (!bookingId) {
-      return NextResponse.json(
-        { error: 'Booking ID is required' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'Booking ID required' }, { status: 400 });
     }
 
-    // Get teacher_id
-    const professional = db.prepare(
-      'SELECT id, full_name FROM teachers WHERE user_id = ?'
-    ).get(currentUser.userId) as { id: number; full_name: string } | undefined;
+    // Verify ownership
+    const professionalRes = await db.execute({
+      sql: 'SELECT id FROM teachers WHERE user_id = ?',
+      args: [currentUser.userId]
+    });
+    const professional = professionalRes.rows[0] as unknown as { id: number } | undefined;
 
-    if (!professional) {
-      return NextResponse.json(
-        { error: 'Professional profile not found' },
-        { status: 404 }
-      );
-    }
+    if (!professional) return NextResponse.json({ error: 'Teacher not found' }, { status: 404 });
 
-    // Get booking details for email
-    const booking = db.prepare(`
-      SELECT 
-        c.*,
-        p.full_name as student_name,
-        u.email as student_email
-      FROM sessions c
-      JOIN students p ON c.student_id = p.user_id
-      JOIN users u ON p.user_id = u.id
-      WHERE c.id = ? AND c.teacher_id = ?
-    `).get(bookingId, professional.id) as any;
+    const bookingRes = await db.execute({
+      sql: `SELECT id FROM sessions WHERE id = ? AND teacher_id = ?`,
+      args: [bookingId, professional.id]
+    });
+    const booking = bookingRes.rows[0];
 
     if (!booking) {
-      return NextResponse.json(
-        { error: 'Booking not found' },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: 'Booking not found' }, { status: 404 });
     }
 
-    // Update status to cancelled
-    db.prepare('UPDATE sessions SET status = ? WHERE id = ?').run('cancelled', bookingId);
-
-    // Send cancellation email
-    try {
-      const emailSubject = `Session Cancelled - ${professional.full_name}`;
-      const emailHtml = `
-        <h2>Session Cancelled</h2>
-        <p>Hello ${booking.student_name},</p>
-        <p>We regret to inform you that your session with ${professional.full_name} has been cancelled.</p>
-        <p><strong>Original Date:</strong> ${new Date(booking.scheduled_date).toLocaleDateString()}</p>
-        <p><strong>Original Time:</strong> ${booking.scheduled_time}</p>
-        <p>Please contact us if you have any questions or would like to reschedule.</p>
-      `;
-
-      await sendEmail(booking.student_email, {
-        subject: emailSubject,
-        html: emailHtml
-      });
-    } catch (emailError) {
-      console.error('Email notification error:', emailError);
-    }
+    // Soft delete or status 'cancelled'
+    await db.execute({
+      sql: 'UPDATE sessions SET status = ? WHERE id = ?',
+      args: ['cancelled', bookingId]
+    });
 
     return NextResponse.json({
       success: true,
-      message: 'Booking cancelled successfully',
+      message: 'Booking cancelled successfully'
     });
+
   } catch (error) {
-    console.error('Delete booking error:', error);
+    console.error('Cancel booking error:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

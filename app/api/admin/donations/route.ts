@@ -36,7 +36,8 @@ export async function GET(request: NextRequest) {
     params.push(limit, offset);
 
     // Get donations
-    const donations = db.prepare(query).all(...params);
+    const donationsRes = await db.execute({ sql: query, args: params });
+    const donations = donationsRes.rows;
 
     // Get total count
     let countQuery = 'SELECT COUNT(*) as total FROM donations';
@@ -44,18 +45,21 @@ export async function GET(request: NextRequest) {
       countQuery += ' WHERE status = ?';
     }
     const countParams = status ? [status] : [];
-    const { total } = db.prepare(countQuery).get(...countParams) as { total: number };
+    const countRes = await db.execute({ sql: countQuery, args: countParams });
+    const total = (countRes.rows[0] as any).total;
 
     // Calculate statistics
-    const stats = db.prepare(`
-      SELECT 
+    const statsRes = await db.execute({
+      sql: `SELECT 
         COUNT(*) as total_donations,
         SUM(CASE WHEN status = 'succeeded' THEN amount ELSE 0 END) as total_amount,
         AVG(CASE WHEN status = 'succeeded' THEN amount ELSE NULL END) as avg_donation,
         COUNT(CASE WHEN status = 'succeeded' THEN 1 END) as successful_donations,
         COUNT(CASE WHEN status = 'failed' THEN 1 END) as failed_donations
-      FROM donations
-    `).get() as any;
+      FROM donations`,
+      args: []
+    });
+    const stats = statsRes.rows[0] as any;
 
     return NextResponse.json({
       donations: donations.map((d: any) => ({
@@ -71,8 +75,8 @@ export async function GET(request: NextRequest) {
       },
       stats: {
         total_donations: stats.total_donations,
-        total_amount_usd: stats.total_amount / 100,
-        avg_donation_usd: stats.avg_donation / 100,
+        total_amount_usd: (stats.total_amount || 0) / 100,
+        avg_donation_usd: (stats.avg_donation || 0) / 100,
         successful_donations: stats.successful_donations,
         failed_donations: stats.failed_donations,
       },

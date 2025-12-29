@@ -2,54 +2,53 @@ import { NextResponse } from 'next/server';
 import { getUserFromRequest } from '@/lib/auth';
 import db from '@/lib/db';
 
-// get all approved testimonials for public access
+// GET /api/testimonials - Get approved testimonials for public display
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
+    const limit = parseInt(searchParams.get('limit') || '50');
     const featured = searchParams.get('featured') === 'true';
-    const limit = parseInt(searchParams.get('limit') || '20');
-    
+
     let query = `
       SELECT 
         t.id,
         t.content,
         t.rating,
-        t.is_featured,
         t.created_at,
         t.user_type,
         CASE 
-          WHEN t.user_type = 'patient' THEN p.username
+          WHEN t.user_type = 'student' THEN s.full_name
           WHEN t.user_type = 'teacher' THEN hp.full_name
-          WHEN t.user_type = 'admin' THEN ia.full_name
         END as user_name,
         CASE 
+          WHEN t.user_type = 'student' THEN 'Student'
           WHEN t.user_type = 'teacher' THEN hp.specialization
           ELSE NULL
-        END as user_specialization
+        END as user_role_display
       FROM testimonials t
-      LEFT JOIN patients p ON t.user_type = 'patient' AND EXISTS (
-        SELECT 1 FROM users u WHERE u.id = t.user_id AND u.role = 'patient' AND u.id = p.user_id
-      )
-      LEFT JOIN teachers hp ON t.user_type = 'teacher' AND EXISTS (
-        SELECT 1 FROM users u WHERE u.id = t.user_id AND u.role = 'teacher' AND u.id = hp.user_id
-      )
-      LEFT JOIN admins ia ON t.user_type = 'admin' AND EXISTS (
-        SELECT 1 FROM users u WHERE u.id = t.user_id AND u.role = 'admin' AND u.id = ia.user_id
-      )
-      WHERE t.approval_status = 'approved'
+      JOIN users u ON t.user_id = u.id
+      LEFT JOIN students s ON t.user_type = 'student' AND u.id = s.user_id
+      LEFT JOIN teachers hp ON t.user_type = 'teacher' AND u.id = hp.user_id
+      WHERE t.is_approved = 1
     `;
-    
+
+    const params = [];
+
     if (featured) {
       query += ' AND t.is_featured = 1';
     }
-    
-    query += ' ORDER BY t.is_featured DESC, t.created_at DESC LIMIT ?';
-    
-    const testimonials = db.prepare(query).all(limit);
-    
+
+    query += ' ORDER BY t.created_at DESC LIMIT ?';
+    params.push(limit);
+
+    const testimonialsRes = await db.execute({
+      sql: query,
+      args: params
+    });
+
     return NextResponse.json({
       success: true,
-      data: testimonials,
+      data: testimonialsRes.rows,
     });
   } catch (error) {
     console.error('Get testimonials error:', error);
@@ -60,65 +59,57 @@ export async function GET(request: Request) {
   }
 }
 
-// create new testimonial for authenticated users
+// POST /api/testimonials - Create a new testimonial
 export async function POST(request: Request) {
   try {
     const currentUser = getUserFromRequest(request);
-    
+
     if (!currentUser) {
       return NextResponse.json(
-        { error: 'Unauthorized. Please login to submit a testimonial.' },
+        { error: 'Unauthorized. Please login to leave a testimonial.' },
         { status: 401 }
       );
     }
-    
-    const { content, rating } = await request.json();
-    
-    if (!content) {
+
+    const body = await request.json();
+    const { content, rating } = body;
+
+    if (!content || !rating) {
       return NextResponse.json(
-        { error: 'Content is required' },
+        { error: 'Content and rating are required' },
         { status: 400 }
       );
     }
-    
-    if (rating && (rating < 1 || rating > 5)) {
+
+    // Check if user has already left a testimonial (limit 1 per user for now)
+    const existingRes = await db.execute({
+      sql: 'SELECT id FROM testimonials WHERE user_id = ?',
+      args: [currentUser.userId]
+    });
+
+    if (existingRes.rows.length > 0) {
       return NextResponse.json(
-        { error: 'Rating must be between 1 and 5' },
+        { error: 'You have already submitted a testimonial.' },
         { status: 400 }
       );
     }
-    
-    // check if user already has testimonial
-    const existing = db.prepare('SELECT id FROM testimonials WHERE user_id = ?')
-      .get(currentUser.userId);
-    
-    if (existing) {
-      return NextResponse.json(
-        { error: 'You have already submitted a testimonial. You can update it instead.' },
-        { status: 409 }
-      );
-    }
-    
-    const insertTestimonial = db.prepare(`
-      INSERT INTO testimonials (user_id, user_type, content, rating, approval_status)
-      VALUES (?, ?, ?, ?, 'pending')
-    `);
-    
-    const result = insertTestimonial.run(
-      currentUser.userId,
-      currentUser.role,
-      content,
-      rating || null
-    );
-    
+
+    // Get user type (student or teacher)
+    // We can infer this from the user's role in the token, but let's double check DB role
+    // For now using the role from the token is safe enough for this purpose
+    const userRole = currentUser.role === 'admin' ? 'student' : currentUser.role; // Admins shouldn't really leave testimonials but fallback to student
+
+    await db.execute({
+      sql: `INSERT INTO testimonials (user_id, user_type, content, rating, is_approved, is_featured)
+      VALUES (?, ?, ?, ?, 0, 0)`,
+      args: [currentUser.userId, userRole, content, rating]
+    });
+
     return NextResponse.json({
       success: true,
-      message: 'Testimonial submitted for approval',
-      data: {
-        id: result.lastInsertRowid,
-        approval_status: 'pending',
-      },
+      message: 'Testimonial submitted successfully. It will be visible after approval.',
     }, { status: 201 });
+
   } catch (error) {
     console.error('Create testimonial error:', error);
     return NextResponse.json(

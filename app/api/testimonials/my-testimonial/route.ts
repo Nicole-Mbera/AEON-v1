@@ -1,44 +1,30 @@
+
 import { NextResponse } from 'next/server';
 import { getUserFromRequest } from '@/lib/auth';
 import db from '@/lib/db';
 
-// get current user's testimonial
 export async function GET(request: Request) {
   try {
     const currentUser = getUserFromRequest(request);
-    
+
     if (!currentUser) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
       );
     }
-    
-    const testimonial = db.prepare(`
-      SELECT 
-        id,
-        content,
-        rating,
-        approval_status,
-        rejection_reason,
-        is_featured,
-        created_at,
-        updated_at
-      FROM testimonials
-      WHERE user_id = ?
-    `).get(currentUser.userId) as any;
-    
-    if (!testimonial) {
-      return NextResponse.json({
-        success: true,
-        data: null,
-      });
-    }
-    
+
+    const testimonialRes = await db.execute({
+      sql: `SELECT * FROM testimonials WHERE user_id = ?`,
+      args: [currentUser.userId]
+    });
+    const testimonial = testimonialRes.rows[0];
+
     return NextResponse.json({
       success: true,
-      data: testimonial,
+      data: testimonial || null,
     });
+
   } catch (error) {
     console.error('Get my testimonial error:', error);
     return NextResponse.json(
@@ -48,67 +34,57 @@ export async function GET(request: Request) {
   }
 }
 
-// update testimonial if rejected or pending
 export async function PUT(request: Request) {
   try {
     const currentUser = getUserFromRequest(request);
-    
+
     if (!currentUser) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
       );
     }
-    
-    const testimonial = db.prepare('SELECT * FROM testimonials WHERE user_id = ?')
-      .get(currentUser.userId) as any;
-    
-    if (!testimonial) {
+
+    const { content, rating } = await request.json();
+
+    if (!content || !rating) {
       return NextResponse.json(
-        { error: 'You don\'t have a testimonial yet. Please create one first.' },
+        { error: 'Content and rating are required' },
+        { status: 400 }
+      );
+    }
+
+    // Update existing
+    // Check if exists first
+    const existingRes = await db.execute({
+      sql: 'SELECT * FROM testimonials WHERE user_id = ?',
+      args: [currentUser.userId]
+    });
+
+    if (existingRes.rows.length === 0) {
+      return NextResponse.json(
+        { error: 'Testimonial not found' },
         { status: 404 }
       );
     }
-    
-    // can only update if pending or rejected
-    if (testimonial.approval_status === 'approved') {
-      return NextResponse.json(
-        { error: 'Cannot update approved testimonials' },
-        { status: 400 }
-      );
-    }
-    
-    const { content, rating } = await request.json();
-    
-    if (!content) {
-      return NextResponse.json(
-        { error: 'Content is required' },
-        { status: 400 }
-      );
-    }
-    
-    if (rating && (rating < 1 || rating > 5)) {
-      return NextResponse.json(
-        { error: 'Rating must be between 1 and 5' },
-        { status: 400 }
-      );
-    }
-    
-    db.prepare(`
-      UPDATE testimonials 
-      SET content = ?, rating = ?, 
-          approval_status = 'pending',
-          rejection_reason = NULL,
-          updated_at = CURRENT_TIMESTAMP
-      WHERE user_id = ?
-    `).run(content, rating || null, currentUser.userId);
-    
+
+    // When updating, we might want to reset approval status to pending?
+    // For now, let's keep it simple and just update content.
+    // If strict moderation is needed, set is_approved = 0
+    await db.execute({
+      sql: `UPDATE testimonials 
+        SET content = ?, rating = ?, is_approved = 0, updated_at = CURRENT_TIMESTAMP 
+        WHERE user_id = ?`,
+      args: [content, rating, currentUser.userId]
+    });
+
     return NextResponse.json({
       success: true,
-      message: 'Testimonial updated and resubmitted for approval',
+      message: 'Testimonial updated successfully. Pending re-approval.',
     });
+
   } catch (error) {
-    console.error('Update testimonial error:', error);
+    console.error('Update my testimonial error:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
@@ -116,34 +92,29 @@ export async function PUT(request: Request) {
   }
 }
 
-// delete user's testimonial
 export async function DELETE(request: Request) {
   try {
     const currentUser = getUserFromRequest(request);
-    
+
     if (!currentUser) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
       );
     }
-    
-    const result = db.prepare('DELETE FROM testimonials WHERE user_id = ?')
-      .run(currentUser.userId);
-    
-    if (result.changes === 0) {
-      return NextResponse.json(
-        { error: 'No testimonial found to delete' },
-        { status: 404 }
-      );
-    }
-    
+
+    await db.execute({
+      sql: 'DELETE FROM testimonials WHERE user_id = ?',
+      args: [currentUser.userId]
+    });
+
     return NextResponse.json({
       success: true,
       message: 'Testimonial deleted successfully',
     });
+
   } catch (error) {
-    console.error('Delete testimonial error:', error);
+    console.error('Delete my testimonial error:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

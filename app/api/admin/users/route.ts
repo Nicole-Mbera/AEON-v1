@@ -15,8 +15,8 @@ export async function GET(request: Request) {
     }
 
     // Get all users with their profile information
-    const users = db.prepare(`
-      SELECT 
+    const usersRes = await db.execute({
+      sql: `SELECT 
         u.id,
         u.email,
         u.role,
@@ -36,8 +36,10 @@ export async function GET(request: Request) {
       LEFT JOIN students s ON u.id = s.user_id AND u.role = 'student'
       LEFT JOIN teachers t ON u.id = t.user_id AND u.role = 'teacher'
       LEFT JOIN admins a ON u.id = a.user_id AND u.role = 'admin'
-      ORDER BY u.created_at DESC
-    `).all();
+      ORDER BY u.created_at DESC`,
+      args: []
+    });
+    const users = usersRes.rows;
 
     // Get statistics
     const stats = {

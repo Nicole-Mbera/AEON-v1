@@ -6,10 +6,10 @@ export async function POST(request: Request) {
   try {
     // Get user from token to log activity
     const currentUser = getUserFromRequest(request);
-    
+
     if (currentUser) {
       try {
-        activityQueries.logActivity.run(
+        await activityQueries.logActivity(
           currentUser.userId,
           'logout',
           JSON.stringify({ timestamp: new Date().toISOString() })
@@ -18,13 +18,13 @@ export async function POST(request: Request) {
         console.error('Failed to log logout activity:', error);
       }
     }
-    
+
     // Create response and clear the token cookie
     const response = NextResponse.json({
       success: true,
       message: 'Logged out successfully',
     });
-    
+
     // Clear the httpOnly cookie
     response.cookies.set('token', '', {
       httpOnly: true,
@@ -33,7 +33,7 @@ export async function POST(request: Request) {
       maxAge: 0,
       path: '/',
     });
-    
+
     return response;
   } catch (error) {
     console.error('Logout error:', error);

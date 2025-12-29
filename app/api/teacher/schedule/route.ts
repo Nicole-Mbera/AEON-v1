@@ -170,7 +170,7 @@ export async function POST(request: NextRequest) {
       success: true,
       message: 'Schedule created successfully',
       data: {
-        id: insertRes.lastInsertRowid,
+        id: Number(insertRes.lastInsertRowid),
         day_of_week,
         start_time,
         end_time,

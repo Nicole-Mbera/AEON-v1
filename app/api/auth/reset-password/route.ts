@@ -24,12 +24,16 @@ export async function POST(request: Request) {
         // 1. Find user with valid token and unexpired time
         // Note: We need to handle SQLite date checking carefully. 
         // Since we stored expires as number (Date.now() + 3600000), we can just compare integers.
-        const user = db.prepare(`
+        const userRes = await db.execute({
+            sql: `
       SELECT id 
       FROM users 
       WHERE reset_password_token = ? 
       AND reset_password_expires > ?
-    `).get(token, Date.now()) as { id: number } | undefined;
+    `,
+            args: [token, Date.now()]
+        });
+        const user = userRes.rows[0] as unknown as { id: number } | undefined;
 
         if (!user) {
             return NextResponse.json(
@@ -43,11 +47,14 @@ export async function POST(request: Request) {
         const passwordHash = await bcrypt.hash(password, salt);
 
         // 3. Update user password and clear token
-        db.prepare(`
+        await db.execute({
+            sql: `
       UPDATE users 
       SET password_hash = ?, reset_password_token = NULL, reset_password_expires = NULL
       WHERE id = ?
-    `).run(passwordHash, user.id);
+    `,
+            args: [passwordHash, user.id]
+        });
 
         return NextResponse.json({ success: true, message: 'Password has been reset successfully' });
 

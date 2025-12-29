@@ -1,187 +1,178 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
+import db from '@/lib/db';
 import { headers } from 'next/headers';
-import Database from 'better-sqlite3';
-import path from 'path';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
-const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+  apiVersion: '2025-12-15.clover',
+});
 
-// Initialize database connection
-const dbPath = path.join(process.cwd(), 'aeon.db');
-const db = new Database(dbPath);
+const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET!;
 
-// Ensure donations table exists
-db.exec(`
-  CREATE TABLE IF NOT EXISTS donations (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    stripe_payment_intent_id TEXT UNIQUE NOT NULL,
-    donor_name TEXT NOT NULL,
-    donor_email TEXT NOT NULL,
-    amount INTEGER NOT NULL,
-    currency TEXT DEFAULT 'usd',
-    status TEXT DEFAULT 'pending',
-    metadata TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-  );
-  
-  CREATE INDEX IF NOT EXISTS idx_donations_email ON donations(donor_email);
-  CREATE INDEX IF NOT EXISTS idx_donations_status ON donations(status);
-  CREATE INDEX IF NOT EXISTS idx_donations_created_at ON donations(created_at);
-`);
-
-export async function POST(request: Request) {
-  const body = await request.text();
+export async function POST(req: NextRequest) {
+  const body = await req.text();
   const headersList = await headers();
-  const signature = headersList.get('stripe-signature');
-
-  if (!webhookSecret) {
-    console.warn('⚠️ STRIPE_WEBHOOK_SECRET not set - webhook verification disabled');
-    // In development, you can proceed without verification
-    // In production, this should return an error
-    if (process.env.NODE_ENV === 'production') {
-      return NextResponse.json(
-        { error: 'Webhook secret not configured' },
-        { status: 500 }
-      );
-    }
-  }
+  const sig = headersList.get('stripe-signature')!;
 
   let event: Stripe.Event;
 
   try {
-    if (webhookSecret && signature) {
-      event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
-    } else {
-      // For development without webhook secret, parse the body directly
-      event = JSON.parse(body);
-    }
+    event = stripe.webhooks.constructEvent(body, sig, endpointSecret);
   } catch (err: any) {
-    console.error('Webhook signature verification failed:', err.message);
-    return NextResponse.json(
-      { error: `Webhook Error: ${err.message}` },
-      { status: 400 }
-    );
+    console.error(`Webhook Error: ${err.message}`);
+    return NextResponse.json({ error: `Webhook Error: ${err.message}` }, { status: 400 });
   }
 
-  // Handle the event
   try {
     switch (event.type) {
-      case 'payment_intent.succeeded': {
+      case 'payment_intent.succeeded':
         const paymentIntent = event.data.object as Stripe.PaymentIntent;
-        console.log('✅ Payment succeeded:', {
-          id: paymentIntent.id,
-          amount: paymentIntent.amount / 100,
-          donor: paymentIntent.metadata.donor_name,
-          email: paymentIntent.metadata.email,
-        });
-        
-        // Save donation to database
-        try {
-          const stmt = db.prepare(`
-            INSERT INTO donations (
-              stripe_payment_intent_id,
-              donor_name,
-              donor_email,
-              amount,
-              currency,
-              status,
-              metadata
-            ) VALUES (?, ?, ?, ?, ?, ?, ?)
-            ON CONFLICT(stripe_payment_intent_id) DO UPDATE SET
-              status = excluded.status,
-              updated_at = CURRENT_TIMESTAMP
-          `);
-          
-          stmt.run(
-            paymentIntent.id,
-            paymentIntent.metadata.donor_name || 'Anonymous',
-            paymentIntent.metadata.email || paymentIntent.receipt_email || '',
-            paymentIntent.amount,
-            paymentIntent.currency,
-            'succeeded',
-            JSON.stringify(paymentIntent.metadata)
-          );
-          
-          console.log('✅ Donation saved to database');
-        } catch (dbError: any) {
-          console.error('Error saving donation to database:', dbError);
-        }
-        
+        await handlePaymentSuccess(paymentIntent);
         break;
-      }
 
-      case 'payment_intent.payment_failed': {
-        const paymentIntent = event.data.object as Stripe.PaymentIntent;
-        console.error('❌ Payment failed:', {
-          id: paymentIntent.id,
-          error: paymentIntent.last_payment_error?.message,
-        });
-        
-        // Update donation status in database
-        try {
-          const stmt = db.prepare(`
-            INSERT INTO donations (
-              stripe_payment_intent_id,
-              donor_name,
-              donor_email,
-              amount,
-              currency,
-              status,
-              metadata
-            ) VALUES (?, ?, ?, ?, ?, ?, ?)
-            ON CONFLICT(stripe_payment_intent_id) DO UPDATE SET
-              status = excluded.status,
-              updated_at = CURRENT_TIMESTAMP
-          `);
-          
-          stmt.run(
-            paymentIntent.id,
-            paymentIntent.metadata.donor_name || 'Anonymous',
-            paymentIntent.metadata.email || paymentIntent.receipt_email || '',
-            paymentIntent.amount,
-            paymentIntent.currency,
-            'failed',
-            JSON.stringify(paymentIntent.metadata)
-          );
-        } catch (dbError: any) {
-          console.error('Error updating failed payment in database:', dbError);
-        }
-        
+      case 'payment_intent.payment_failed':
+        const failedPayment = event.data.object as Stripe.PaymentIntent;
+        await handlePaymentFailure(failedPayment);
         break;
-      }
 
-      case 'payment_intent.canceled': {
-        const paymentIntent = event.data.object as Stripe.PaymentIntent;
-        console.log('⚠️ Payment canceled:', paymentIntent.id);
-        
-        // Update donation status in database
-        try {
-          const stmt = db.prepare(`
-            UPDATE donations 
-            SET status = 'canceled', updated_at = CURRENT_TIMESTAMP
-            WHERE stripe_payment_intent_id = ?
-          `);
-          
-          stmt.run(paymentIntent.id);
-        } catch (dbError: any) {
-          console.error('Error updating canceled payment in database:', dbError);
+      case 'invoice.payment_succeeded':
+        // Handle subscription payment success if needed
+        const invoice = event.data.object as any;
+        if (invoice.subscription) {
+          await handleSubscriptionPayment(invoice);
         }
-        
         break;
-      }
-
-      default:
-        console.log(`Unhandled event type: ${event.type}`);
     }
 
     return NextResponse.json({ received: true });
-  } catch (error: any) {
-    console.error('Error processing webhook:', error);
+  } catch (err: any) {
+    console.error('Webhook handler failed:', err);
     return NextResponse.json(
-      { error: 'Webhook processing failed' },
+      { error: 'Webhook handler failed' },
       { status: 500 }
     );
+  }
+}
+
+async function handlePaymentSuccess(paymentIntent: Stripe.PaymentIntent) {
+  const { metadata, amount, currency, id } = paymentIntent;
+
+  if (!metadata) return;
+
+  const { userId, type, session_id } = metadata;
+
+  // Record transaction in database
+  await db.execute({
+    sql: `
+      INSERT INTO transactions (
+        stripe_payment_id,
+        user_id,
+        amount,
+        currency,
+        status,
+        type,
+        metadata
+      ) VALUES (?, ?, ?, ?, 'succeeded', ?, ?)
+    `,
+    args: [
+      id,
+      userId || null,
+      amount,
+      currency,
+      type || 'one_time',
+      JSON.stringify(metadata)
+    ]
+  });
+
+  // If this was a donation
+  if (type === 'donation') {
+    await db.execute({
+      sql: `
+        INSERT INTO donations (
+          user_id,
+          amount,
+          currency,
+          status,
+          stripe_payment_id,
+          metadata
+        ) VALUES (?, ?, ?, 'succeeded', ?, ?)
+      `,
+      args: [
+        userId || null,
+        amount,
+        currency,
+        id,
+        JSON.stringify(metadata)
+      ]
+    });
+  }
+
+  // If this was a session booking payment
+  if (type === 'session_booking' && session_id) {
+    await db.execute({
+      sql: `UPDATE sessions SET status = 'confirmed', payment_status = 'paid' WHERE id = ?`,
+      args: [session_id]
+    });
+  }
+}
+
+async function handlePaymentFailure(paymentIntent: Stripe.PaymentIntent) {
+  const { metadata, amount, currency, id, last_payment_error } = paymentIntent;
+
+  await db.execute({
+    sql: `
+      INSERT INTO transactions (
+        stripe_payment_id,
+        user_id,
+        amount,
+        currency,
+        status,
+        type,
+        metadata,
+        error_message
+      ) VALUES (?, ?, ?, ?, 'failed', ?, ?, ?)
+    `,
+    args: [
+      id,
+      metadata?.userId || null,
+      amount,
+      currency,
+      metadata?.type || 'unknown',
+      JSON.stringify(metadata),
+      last_payment_error?.message || 'Unknown error'
+    ]
+  });
+
+  // If this was a donation
+  if (metadata?.type === 'donation') {
+    await db.execute({
+      sql: `
+        INSERT INTO donations (
+          user_id,
+          amount,
+          currency,
+          status,
+          stripe_payment_id,
+          metadata
+        ) VALUES (?, ?, ?, 'failed', ?, ?)
+      `,
+      args: [
+        metadata.userId || null,
+        amount,
+        currency,
+        id,
+        JSON.stringify(metadata)
+      ]
+    });
+  }
+}
+
+async function handleSubscriptionPayment(invoice: Stripe.Invoice) {
+  // Logic to update user subscription status
+  if (invoice.customer_email) {
+    console.log(`Subscription payment received for ${invoice.customer_email}`);
+    // Here you would look up the user by email and update their subscription status
+    // For example:
+    // db.execute('UPDATE users SET subscription_status = "active" WHERE email = ?', [invoice.customer_email]);
   }
 }

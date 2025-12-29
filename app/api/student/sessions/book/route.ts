@@ -80,7 +80,7 @@ export async function POST(req: NextRequest) {
     });
 
     // Handle lastInsertRowid
-    let sessionId = insertRes.lastInsertRowid;
+    let sessionId = insertRes.lastInsertRowid ? Number(insertRes.lastInsertRowid) : 0;
     // Fallback if not returned or 0 (though LibSQL usually returns it)
     if (!sessionId) {
       // Try to fetch it
@@ -88,7 +88,7 @@ export async function POST(req: NextRequest) {
         sql: 'SELECT id FROM sessions WHERE student_id = ? AND scheduled_date = ? AND scheduled_time = ?',
         args: [student.id, scheduledDate, scheduledTime]
       });
-      if (fetchBack.rows[0]) sessionId = fetchBack.rows[0].id as bigint;
+      if (fetchBack.rows[0]) sessionId = Number(fetchBack.rows[0].id);
     }
 
     const resultSession = {

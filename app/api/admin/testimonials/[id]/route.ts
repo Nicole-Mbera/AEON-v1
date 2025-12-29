@@ -1,15 +1,16 @@
-import { NextResponse } from 'next/server';
+
+import { NextRequest, NextResponse } from 'next/server';
 import { getUserFromRequest, hasRole } from '@/lib/auth';
 import db from '@/lib/db';
 
-// PUT /api/admin/testimonials/[id] - Approve or reject testimonial
 export async function PUT(
-  request: Request,
-  { params }: { params: Promise<{ id: string }> }
+  request: NextRequest,
+  props: { params: Promise<{ id: string }> }
 ) {
+  const params = await props.params;
   try {
     const currentUser = getUserFromRequest(request);
-    
+
     if (!currentUser || !hasRole(currentUser, 'admin')) {
       return NextResponse.json(
         { error: 'Unauthorized. Admin access required.' },
@@ -17,23 +18,16 @@ export async function PUT(
       );
     }
 
-    const { id } = await params;
-    const testimonialId = parseInt(id);
-    const { action, is_featured, rejection_reason } = await request.json();
+    const testimonialId = params.id;
+    const body = await request.json();
+    const { is_approved, is_featured } = body;
 
-    if (!action || !['approve', 'reject'].includes(action)) {
-      return NextResponse.json(
-        { error: 'Invalid action. Must be "approve" or "reject"' },
-        { status: 400 }
-      );
-    }
-
-    // Get testimonial
-    const testimonial = db.prepare(`
-      SELECT t.*, u.email FROM testimonials t
-      JOIN users u ON t.user_id = u.id
-      WHERE t.id = ?
-    `).get(testimonialId);
+    // Verify testimonial exists
+    const testimonialRes = await db.execute({
+      sql: 'SELECT id FROM testimonials WHERE id = ?',
+      args: [testimonialId]
+    });
+    const testimonial = testimonialRes.rows[0];
 
     if (!testimonial) {
       return NextResponse.json(
@@ -42,37 +36,74 @@ export async function PUT(
       );
     }
 
-    if (action === 'approve') {
-      // Approve testimonial
-      db.prepare(`
-        UPDATE testimonials 
-        SET is_approved = 1,
-            is_featured = ?
-        WHERE id = ?
-      `).run(is_featured ? 1 : 0, testimonialId);
+    // Build update query
+    let updateQuery = 'UPDATE testimonials SET ';
+    const updateParams = [];
+    const updates = [];
 
-      return NextResponse.json({
-        success: true,
-        message: 'Testimonial approved successfully',
-      });
+    if (is_approved !== undefined) {
+      updates.push('is_approved = ?');
+      updateParams.push(is_approved ? 1 : 0);
+    }
 
-    } else {
-      // Reject testimonial
-      db.prepare(`
-        UPDATE testimonials 
-        SET is_approved = 0,
-            is_featured = 0
-        WHERE id = ?
-      `).run(testimonialId);
+    if (is_featured !== undefined) {
+      updates.push('is_featured = ?');
+      updateParams.push(is_featured ? 1 : 0);
+    }
 
-      return NextResponse.json({
-        success: true,
-        message: 'Testimonial rejected',
+    if (updates.length > 0) {
+      updateQuery += updates.join(', ') + ' WHERE id = ?';
+      updateParams.push(testimonialId);
+
+      await db.execute({
+        sql: updateQuery,
+        args: updateParams
       });
     }
 
+    return NextResponse.json({
+      success: true,
+      message: 'Testimonial updated successfully'
+    });
+
   } catch (error) {
-    console.error('Testimonial approval error:', error);
+    console.error('Update testimonial error:', error);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(
+  request: NextRequest,
+  props: { params: Promise<{ id: string }> }
+) {
+  const params = await props.params;
+  try {
+    const currentUser = getUserFromRequest(request);
+
+    if (!currentUser || !hasRole(currentUser, 'admin')) {
+      return NextResponse.json(
+        { error: 'Unauthorized. Admin access required.' },
+        { status: 403 }
+      );
+    }
+
+    const testimonialId = params.id;
+
+    await db.execute({
+      sql: 'DELETE FROM testimonials WHERE id = ?',
+      args: [testimonialId]
+    });
+
+    return NextResponse.json({
+      success: true,
+      message: 'Testimonial deleted successfully'
+    });
+
+  } catch (error) {
+    console.error('Delete testimonial error:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

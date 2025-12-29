@@ -26,12 +26,14 @@ export async function POST(request: Request) {
     }
 
     // Fetch user email and teacher details for notification
-    const userData = db.prepare(`
-      SELECT u.email, t.full_name 
+    const userDataRes = await db.execute({
+      sql: `SELECT u.email, t.full_name 
       FROM users u 
       LEFT JOIN teachers t ON u.id = t.user_id
-      WHERE u.id = ?
-    `).get(user_id) as { email: string; full_name: string } | undefined;
+      WHERE u.id = ?`,
+      args: [user_id]
+    });
+    const userData = userDataRes.rows[0] as unknown as { email: string; full_name: string } | undefined;
 
     const teacherName = userData?.full_name || 'Teacher';
     const teacherEmail = userData?.email;
@@ -41,24 +43,23 @@ export async function POST(request: Request) {
 
     if (action === 'approve') {
       // Approve the teacher by setting is_verified = 1 and is_active = 1
-      db.prepare(`
-        UPDATE users 
+      await db.execute({
+        sql: `UPDATE users 
         SET is_verified = 1, is_active = 1, updated_at = CURRENT_TIMESTAMP
-        WHERE id = ?
-      `).run(user_id);
+        WHERE id = ?`,
+        args: [user_id]
+      });
 
       // Log the approval
-      db.prepare(`
-        INSERT INTO user_activity (user_id, activity_type, details)
-        VALUES (?, 'teacher_approved', ?)
-      `).run(
-        currentUser.userId,
-        JSON.stringify({
+      await db.execute({
+        sql: `INSERT INTO user_activity (user_id, activity_type, details)
+        VALUES (?, 'teacher_approved', ?)`,
+        args: [currentUser.userId, JSON.stringify({
           approved_teacher_id: teacher_id,
           approved_user_id: user_id,
           timestamp: new Date().toISOString()
-        })
-      );
+        })]
+      });
 
       // Send approval email
       if (teacherEmail) {
@@ -74,25 +75,24 @@ export async function POST(request: Request) {
       });
     } else if (action === 'reject') {
       // Deactivate the user account
-      db.prepare(`
-        UPDATE users 
+      await db.execute({
+        sql: `UPDATE users 
         SET is_active = 0, is_verified = 0, updated_at = CURRENT_TIMESTAMP
-        WHERE id = ?
-      `).run(user_id);
+        WHERE id = ?`,
+        args: [user_id]
+      });
 
       // Log the rejection
-      db.prepare(`
-        INSERT INTO user_activity (user_id, activity_type, details)
-        VALUES (?, 'teacher_rejected', ?)
-      `).run(
-        currentUser.userId,
-        JSON.stringify({
+      await db.execute({
+        sql: `INSERT INTO user_activity (user_id, activity_type, details)
+        VALUES (?, 'teacher_rejected', ?)`,
+        args: [currentUser.userId, JSON.stringify({
           rejected_teacher_id: teacher_id,
           rejected_user_id: user_id,
           reason: reason || 'No reason provided',
           timestamp: new Date().toISOString()
-        })
-      );
+        })]
+      });
 
       // Send rejection email
       if (teacherEmail) {

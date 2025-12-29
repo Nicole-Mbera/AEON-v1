@@ -1,170 +1,85 @@
+
 import { NextResponse } from 'next/server';
 import { getUserFromRequest, hasRole } from '@/lib/auth';
 import db from '@/lib/db';
 
-// Submit a review (after consultation)
 export async function POST(request: Request) {
   try {
-    // Authenticate user
     const currentUser = getUserFromRequest(request);
-    
-    if (!currentUser || !hasRole(currentUser, 'patient')) {
+
+    if (!currentUser || !hasRole(currentUser, 'student')) {
       return NextResponse.json(
-        { error: 'Unauthorized. Patient access required.' },
+        { error: 'Unauthorized. Student access required.' },
         { status: 403 }
       );
     }
-    
-    const { consultation_id, rating, comment } = await request.json();
-    
-    // Validate input
-    if (!consultation_id || !rating || rating < 1 || rating > 5) {
+
+    const { teacher_id, rating, comment, consultation_id } = await request.json();
+
+    if (!teacher_id || !rating) {
       return NextResponse.json(
-        { error: 'Consultation ID and rating (1-5) are required' },
+        { error: 'Teacher ID and rating are required' },
         { status: 400 }
       );
     }
-    
-    // Get patient ID
-    const patientQuery = db.prepare('SELECT id FROM patients WHERE user_id = ?');
-    const patient = patientQuery.get(currentUser.userId) as any;
-    
-    if (!patient) {
-      return NextResponse.json(
-        { error: 'Patient profile not found' },
-        { status: 404 }
-      );
-    }
-    
-    // Verify consultation exists, belongs to patient, and is completed
-    const consultationQuery = db.prepare(`
-      SELECT id, teacher_id, status 
-      FROM sessions
-      WHERE id = ? AND student_id = ?
-    `).get(consultation_id, patient.id) as any;
-    
-    if (!consultationQuery) {
-      return NextResponse.json(
-        { error: 'Consultation not found' },
-        { status: 404 }
-      );
-    }
-    
-    if (consultationQuery.status !== 'completed') {
-      return NextResponse.json(
-        { error: 'Can only review completed consultations' },
-        { status: 400 }
-      );
-    }
-    
-    // Check if review already exists
-    const existingReview = db.prepare(`
-      SELECT id FROM reviews WHERE consultation_id = ?
-    `).get(consultation_id);
-    
-    if (existingReview) {
-      return NextResponse.json(
-        { error: 'Review already submitted for this consultation' },
-        { status: 409 }
-      );
-    }
-    
-    // Create review in a transaction
-    const transaction = db.transaction(() => {
-      // Insert review
-      const insertReview = db.prepare(`
-        INSERT INTO reviews (consultation_id, student_id, teacher_id, rating, comment)
-        VALUES (?, ?, ?, ?, ?)
-      `);
-      
-      insertReview.run(
-        consultation_id,
-        patient.id,
-        consultationQuery.teacher_id,
-        rating,
-        comment || null
-      );
-      
-      // Update professional's average rating
-      const updateRating = db.prepare(`
-        UPDATE teachers
-        SET 
-          total_reviews = total_reviews + 1,
-          average_rating = (
-            SELECT AVG(rating) 
-            FROM reviews 
-            WHERE teacher_id = ?
-          )
-        WHERE id = ?
-      `);
-      
-      updateRating.run(consultationQuery.teacher_id, consultationQuery.teacher_id);
+
+    const patientRes = await db.execute({
+      sql: 'SELECT id FROM students WHERE user_id = ?',
+      args: [currentUser.userId]
     });
-    
-    transaction();
-    
+    const patient = patientRes.rows[0] as unknown as { id: number } | undefined;
+
+    if (!patient) return NextResponse.json({ error: 'Student not found' }, { status: 404 });
+
+    // Verify consultation exists and belongs to student/teacher, and is completed?
+    // Optional check
+    if (consultation_id) {
+      const consultationRes = await db.execute({
+        sql: `SELECT id FROM sessions WHERE id = ? AND student_id = ? AND teacher_id = ?`,
+        args: [consultation_id, patient.id, teacher_id]
+      });
+      if (consultationRes.rows.length === 0) {
+        return NextResponse.json({ error: 'Invalid consultation' }, { status: 400 });
+      }
+    }
+
+    // Check if review already exists for this consultation (if provided)
+    if (consultation_id) {
+      const existingRes = await db.execute({
+        sql: `SELECT id FROM reviews WHERE consultation_id = ?`,
+        args: [consultation_id]
+      });
+      if (existingRes.rows.length > 0) {
+        return NextResponse.json({ error: 'Review already exists for this session' }, { status: 400 });
+      }
+    }
+
+    await db.execute({
+      sql: `INSERT INTO reviews (student_id, teacher_id, consultation_id, rating, comment, created_at)
+        VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`,
+      args: [patient.id, teacher_id, consultation_id || null, rating, comment || null]
+    });
+
+    // Update teacher average rating
+    // This is a bit complex in async without triggers, let's do a quick recalc
+    const ratingsRes = await db.execute({
+      sql: 'SELECT AVG(rating) as avg_rating, COUNT(*) as total FROM reviews WHERE teacher_id = ?',
+      args: [teacher_id]
+    });
+    const { avg_rating, total } = ratingsRes.rows[0] as any;
+
+    await db.execute({
+      sql: `UPDATE teachers SET average_rating = ?, total_reviews = ? WHERE id = ?`,
+      args: [avg_rating || 0, total || 0, teacher_id]
+    });
+
     return NextResponse.json({
       success: true,
-      message: 'Review submitted successfully',
-    }, { status: 201 });
+      message: 'Review submitted successfully'
+    });
+
   } catch (error) {
     console.error('Submit review error:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
-  }
-}
-
-// Get patient's submitted reviews
-export async function GET(request: Request) {
-  try {
-    // Authenticate user
-    const currentUser = getUserFromRequest(request);
-    
-    if (!currentUser || !hasRole(currentUser, 'patient')) {
-      return NextResponse.json(
-        { error: 'Unauthorized. Patient access required.' },
-        { status: 403 }
-      );
-    }
-    
-    // Get patient ID
-    const patientQuery = db.prepare('SELECT id FROM patients WHERE user_id = ?');
-    const patient = patientQuery.get(currentUser.userId) as any;
-    
-    if (!patient) {
-      return NextResponse.json(
-        { error: 'Patient profile not found' },
-        { status: 404 }
-      );
-    }
-    
-    // Get reviews
-    const reviewsQuery = db.prepare(`
-      SELECT 
-        r.id,
-        r.rating,
-        r.comment,
-        r.created_at,
-        hp.full_name as professional_name,
-        hp.specialization,
-        c.scheduled_date
-      FROM reviews r
-      JOIN teachers hp ON r.teacher_id = hp.id
-      JOIN sessions c ON r.consultation_id = c.id
-      WHERE r.student_id = ?
-      ORDER BY r.created_at DESC
-    `);
-    
-    const reviews = reviewsQuery.all(patient.id);
-    
-    return NextResponse.json({
-      success: true,
-      data: reviews,
-    });
-  } catch (error) {
-    console.error('Get reviews error:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
