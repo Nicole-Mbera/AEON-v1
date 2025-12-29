@@ -7,21 +7,21 @@ export async function GET(request: Request) {
   try {
     // Authenticate user
     const currentUser = getUserFromRequest(request);
-    
+
     if (!currentUser || !hasRole(currentUser, 'admin')) {
       return NextResponse.json(
         { error: 'Unauthorized. System Admin access required.' },
         { status: 403 }
       );
     }
-    
+
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '50');
     const activityType = searchParams.get('type');
     const userId = searchParams.get('user_id');
     const offset = (page - 1) * limit;
-    
+
     let query = `
       SELECT 
         ua.id,
@@ -34,40 +34,42 @@ export async function GET(request: Request) {
       JOIN users u ON ua.user_id = u.id
       WHERE 1=1
     `;
-    
+
     const params: any[] = [];
-    
+
     if (activityType) {
       query += ' AND ua.activity_type = ?';
       params.push(activityType);
     }
-    
+
     if (userId) {
       query += ' AND ua.user_id = ?';
       params.push(parseInt(userId));
     }
-    
+
     query += ' ORDER BY ua.created_at DESC LIMIT ? OFFSET ?';
     params.push(limit, offset);
-    
-    const activities = db.prepare(query).all(...params);
-    
+
+    const activitiesRes = await db.execute({ sql: query, args: params });
+    const activities = activitiesRes.rows;
+
     // Get total count
     let countQuery = 'SELECT COUNT(*) as count FROM user_activity WHERE 1=1';
     const countParams: any[] = [];
-    
+
     if (activityType) {
       countQuery += ' AND activity_type = ?';
       countParams.push(activityType);
     }
-    
+
     if (userId) {
       countQuery += ' AND user_id = ?';
       countParams.push(parseInt(userId));
     }
-    
-    const totalCount = (db.prepare(countQuery).get(...countParams) as any).count;
-    
+
+    const countRes = await db.execute({ sql: countQuery, args: countParams });
+    const totalCount = (countRes.rows[0] as any).count;
+
     return NextResponse.json({
       success: true,
       data: activities,

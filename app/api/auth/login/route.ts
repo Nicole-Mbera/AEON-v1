@@ -15,11 +15,11 @@ export async function POST(request: Request) {
 
     if (!rateLimitResult.success) {
       return NextResponse.json(
-        { 
+        {
           error: 'Too many login attempts. Please try again later.',
           retryAfter: Math.ceil((rateLimitResult.reset - Date.now()) / 1000),
         },
-        { 
+        {
           status: 429,
           headers: {
             'Retry-After': String(Math.ceil((rateLimitResult.reset - Date.now()) / 1000)),
@@ -41,19 +41,19 @@ export async function POST(request: Request) {
     }
 
     const { email, password } = validation.data;
-    
+
     // authenticate user
     const result = await authenticateUser(email, password);
-    
+
     if (!result.success) {
       return NextResponse.json(
         { error: result.message },
         { status: 401 }
       );
     }
-    
+
     try {
-      activityQueries.logActivity.run(
+      await activityQueries.logActivity(
         result.user!.id,
         'login',
         JSON.stringify({ timestamp: new Date().toISOString() })
@@ -61,14 +61,14 @@ export async function POST(request: Request) {
     } catch (error) {
       console.error('Failed to log activity:', error);
     }
-    
+
     // Create response with httpOnly cookie
     const response = NextResponse.json({
       success: true,
       token: result.token,
       user: result.user,
     });
-    
+
     // Set httpOnly cookie for API authentication
     if (result.token) {
       response.cookies.set('token', result.token, {
@@ -79,7 +79,7 @@ export async function POST(request: Request) {
         path: '/',
       });
     }
-    
+
     console.log("I am in")
     return response;
   } catch (error) {

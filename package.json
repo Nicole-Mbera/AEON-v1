@@ -12,6 +12,7 @@
     "docs:serve": "npx serve public/api-docs -p 3001"
   },
   "dependencies": {
+    "@libsql/client": "^0.15.15",
     "@sendgrid/mail": "^8.1.6",
     "@stripe/react-stripe-js": "^5.4.1",
     "@stripe/stripe-js": "^8.5.3",

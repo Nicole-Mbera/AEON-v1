@@ -17,6 +17,23 @@ export function HeroSection() {
             <h1 className="max-w-xl text-4xl font-semibold leading-tight tracking-[-0.015em] sm:text-5xl">
               AEON, Revolutionizing Education Acessibility and Efficiency, Together.
             </h1>
+
+            {/* Mobile Image */}
+            <div className="relative block lg:hidden">
+              <div className="relative overflow-hidden rounded-[28px] border border-white/10 bg-white/10 p-2 shadow-[0_45px_75px_-35px_rgba(0,0,0,0.5)] backdrop-blur">
+                <div className="overflow-hidden rounded-[24px]">
+                  <Image
+                    src="/uploads/Hero.JPG"
+                    alt="AEON Academy"
+                    width={520}
+                    height={660}
+                    className="h-full w-full object-cover"
+                    priority
+                  />
+                </div>
+              </div>
+            </div>
+
             <p className="max-w-lg text-base text-white/70 sm:text-lg">
               We connect passionate students with expert teachers through simple booking of one on one seamless authentic connection.
             </p>
@@ -43,7 +60,7 @@ export function HeroSection() {
             ))}
           </div>
         </div>
-        <div className="relative ml-auto flex max-w-sm justify-end">
+        <div className="relative ml-auto hidden max-w-sm justify-end lg:flex">
           <div className="relative overflow-hidden rounded-[28px] border border-white/10 bg-white/10 p-2 shadow-[0_45px_75px_-35px_rgba(0,0,0,0.5)] backdrop-blur">
             <div className="overflow-hidden rounded-[24px]">
               <Image

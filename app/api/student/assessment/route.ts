@@ -32,9 +32,11 @@ export async function POST(request: Request) {
         }
 
         // Get student ID (optional verify if exists first, but we rely on user_id)
-        const student = db.prepare(`
-        SELECT id FROM students WHERE user_id = ?
-      `).get(currentUser.userId) as { id: number } | undefined;
+        const studentRes = await db.execute({
+            sql: 'SELECT id FROM students WHERE user_id = ?',
+            args: [currentUser.userId]
+        });
+        const student = studentRes.rows[0] as { id: number } | undefined;
 
         if (!student) {
             return NextResponse.json(
@@ -43,13 +45,12 @@ export async function POST(request: Request) {
             );
         }
 
-        const stmt = db.prepare(`
-      UPDATE students 
-      SET english_proficiency = ?, proficiency_certificate = ?
-      WHERE id = ?
-    `);
-
-        stmt.run(english_proficiency, proficiency_certificate || null, student.id);
+        await db.execute({
+            sql: `UPDATE students 
+                  SET english_proficiency = ?, proficiency_certificate = ?
+                  WHERE id = ?`,
+            args: [english_proficiency, proficiency_certificate || null, student.id]
+        });
 
         return NextResponse.json({
             success: true,

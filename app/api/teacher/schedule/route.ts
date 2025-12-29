@@ -6,7 +6,7 @@ import db from '@/lib/db';
 export async function GET(request: NextRequest) {
   try {
     const currentUser = getUserFromRequest(request);
-    
+
     if (!currentUser || currentUser.role !== 'teacher') {
       return NextResponse.json(
         { error: 'Unauthorized. Teacher access required.' },
@@ -15,9 +15,11 @@ export async function GET(request: NextRequest) {
     }
 
     // Get teacher_id
-    const professional = db.prepare(
-      'SELECT id FROM teachers WHERE user_id = ?'
-    ).get(currentUser.userId) as { id: number } | undefined;
+    const professionalRes = await db.execute({
+      sql: 'SELECT id FROM teachers WHERE user_id = ?',
+      args: [currentUser.userId]
+    });
+    const professional = professionalRes.rows[0] as unknown as { id: number } | undefined;
 
     if (!professional) {
       return NextResponse.json(
@@ -32,8 +34,8 @@ export async function GET(request: NextRequest) {
     const includeBookings = searchParams.get('include_bookings') === 'true';
 
     // Get all schedules for this professional
-    const schedules = db.prepare(`
-      SELECT 
+    const schedulesRes = await db.execute({
+      sql: `SELECT 
         id,
         day_of_week,
         start_time,
@@ -41,14 +43,16 @@ export async function GET(request: NextRequest) {
         is_available
       FROM availability_schedules
       WHERE teacher_id = ?
-      ORDER BY day_of_week, start_time
-    `).all(professional.id);
+      ORDER BY day_of_week, start_time`,
+      args: [professional.id]
+    });
+    const schedules = schedulesRes.rows;
 
     let bookings: any[] = [];
     if (includeBookings && startDate && endDate) {
       // Get bookings for the date range
-      bookings = db.prepare(`
-        SELECT 
+      const bookingsRes = await db.execute({
+        sql: `SELECT 
           c.id,
           c.scheduled_date,
           c.scheduled_time,
@@ -59,13 +63,15 @@ export async function GET(request: NextRequest) {
           p.username as student_username,
           p.profile_picture as student_picture
         FROM sessions c
-        JOIN students p ON c.student_id = p.user_id
+        JOIN students p ON c.student_id = p.id
         WHERE c.teacher_id = ?
           AND date(c.scheduled_date) >= date(?)
           AND date(c.scheduled_date) <= date(?)
           AND c.status IN ('scheduled', 'confirmed')
-        ORDER BY c.scheduled_date, c.scheduled_time
-      `).all(professional.id, startDate, endDate);
+        ORDER BY c.scheduled_date, c.scheduled_time`,
+        args: [professional.id, startDate, endDate]
+      });
+      bookings = bookingsRes.rows;
     }
 
     return NextResponse.json({
@@ -88,7 +94,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const currentUser = getUserFromRequest(request);
-    
+
     if (!currentUser || currentUser.role !== 'teacher') {
       return NextResponse.json(
         { error: 'Unauthorized. Teacher access required.' },
@@ -114,9 +120,11 @@ export async function POST(request: NextRequest) {
     }
 
     // Get teacher_id
-    const professional = db.prepare(
-      'SELECT id FROM teachers WHERE user_id = ?'
-    ).get(currentUser.userId) as { id: number } | undefined;
+    const professionalRes = await db.execute({
+      sql: 'SELECT id FROM teachers WHERE user_id = ?',
+      args: [currentUser.userId]
+    });
+    const professional = professionalRes.rows[0] as unknown as { id: number } | undefined;
 
     if (!professional) {
       return NextResponse.json(
@@ -126,24 +134,25 @@ export async function POST(request: NextRequest) {
     }
 
     // Check for conflicts
-    const conflict = db.prepare(`
-      SELECT id FROM availability_schedules
+    const conflictRes = await db.execute({
+      sql: `SELECT id FROM availability_schedules
       WHERE teacher_id = ?
         AND day_of_week = ?
         AND (
           (start_time <= ? AND end_time > ?) OR
           (start_time < ? AND end_time >= ?) OR
           (start_time >= ? AND end_time <= ?)
-        )
-    `).get(
-      professional.id,
-      day_of_week,
-      start_time, start_time,
-      end_time, end_time,
-      start_time, end_time
-    );
+        )`,
+      args: [
+        professional.id,
+        day_of_week,
+        start_time, start_time,
+        end_time, end_time,
+        start_time, end_time
+      ]
+    });
 
-    if (conflict) {
+    if (conflictRes.rows.length > 0) {
       return NextResponse.json(
         { error: 'This time slot conflicts with an existing schedule' },
         { status: 409 }
@@ -151,16 +160,17 @@ export async function POST(request: NextRequest) {
     }
 
     // Insert schedule
-    const result = db.prepare(`
-      INSERT INTO availability_schedules (teacher_id, day_of_week, start_time, end_time, is_available)
-      VALUES (?, ?, ?, ?, 1)
-    `).run(professional.id, day_of_week, start_time, end_time);
+    const insertRes = await db.execute({
+      sql: `INSERT INTO availability_schedules (teacher_id, day_of_week, start_time, end_time, is_available)
+      VALUES (?, ?, ?, ?, 1)`,
+      args: [professional.id, day_of_week, start_time, end_time]
+    });
 
     return NextResponse.json({
       success: true,
       message: 'Schedule created successfully',
       data: {
-        id: result.lastInsertRowid,
+        id: insertRes.lastInsertRowid,
         day_of_week,
         start_time,
         end_time,
@@ -180,7 +190,7 @@ export async function POST(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   try {
     const currentUser = getUserFromRequest(request);
-    
+
     if (!currentUser || currentUser.role !== 'teacher') {
       return NextResponse.json(
         { error: 'Unauthorized. Teacher access required.' },
@@ -199,9 +209,11 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Get teacher_id
-    const professional = db.prepare(
-      'SELECT id FROM teachers WHERE user_id = ?'
-    ).get(currentUser.userId) as { id: number } | undefined;
+    const professionalRes = await db.execute({
+      sql: 'SELECT id FROM teachers WHERE user_id = ?',
+      args: [currentUser.userId]
+    });
+    const professional = professionalRes.rows[0] as unknown as { id: number } | undefined;
 
     if (!professional) {
       return NextResponse.json(
@@ -211,12 +223,12 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Verify ownership
-    const schedule = db.prepare(`
-      SELECT id FROM availability_schedules
-      WHERE id = ? AND teacher_id = ?
-    `).get(scheduleId, professional.id);
+    const scheduleRes = await db.execute({
+      sql: 'SELECT id FROM availability_schedules WHERE id = ? AND teacher_id = ?',
+      args: [scheduleId, professional.id]
+    });
 
-    if (!schedule) {
+    if (scheduleRes.rows.length === 0) {
       return NextResponse.json(
         { error: 'Schedule not found or unauthorized' },
         { status: 404 }
@@ -224,7 +236,10 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Delete schedule
-    db.prepare('DELETE FROM availability_schedules WHERE id = ?').run(scheduleId);
+    await db.execute({
+      sql: 'DELETE FROM availability_schedules WHERE id = ?',
+      args: [scheduleId]
+    });
 
     return NextResponse.json({
       success: true,

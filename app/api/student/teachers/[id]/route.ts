@@ -11,8 +11,8 @@ export async function GET(
         const teacherId = params.id;
 
 
-        const teacher = db.prepare(`
-        SELECT 
+        const teacherRes = await db.execute({
+            sql: `SELECT 
             t.id,
             t.full_name,
             t.bio,
@@ -25,8 +25,10 @@ export async function GET(
             COALESCE(t.contact_email, u.email) as contact_email
         FROM teachers t
         JOIN users u ON t.user_id = u.id
-        WHERE t.id = ?
-    `).get(teacherId);
+        WHERE t.id = ?`,
+            args: [teacherId]
+        });
+        const teacher = teacherRes.rows[0];
 
         if (!teacher) {
             return NextResponse.json(

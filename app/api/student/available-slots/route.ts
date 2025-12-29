@@ -15,11 +15,13 @@ export async function GET(request: Request) {
     }
 
     // 1. Get teacher's weekly schedule
-    const schedules = db.prepare(`
-      SELECT day_of_week, start_time, end_time 
+    const schedulesRes = await db.execute({
+      sql: `SELECT day_of_week, start_time, end_time 
       FROM availability_schedules 
-      WHERE teacher_id = ? AND is_available = 1
-    `).all(teacherId) as Array<{ day_of_week: number; start_time: string; end_time: string }>;
+      WHERE teacher_id = ? AND is_available = 1`,
+      args: [teacherId]
+    });
+    const schedules = schedulesRes.rows as unknown as Array<{ day_of_week: number; start_time: string; end_time: string }>;
 
     // 2. Get existing bookings for the relevant period
     const today = new Date();
@@ -28,14 +30,16 @@ export async function GET(request: Request) {
     const endDate = new Date(today);
     endDate.setDate(endDate.getDate() + 30); // Look 30 days ahead
 
-    const bookings = db.prepare(`
-      SELECT scheduled_date, scheduled_time, duration_minutes 
+    const bookingsRes = await db.execute({
+      sql: `SELECT scheduled_date, scheduled_time, duration_minutes 
       FROM sessions 
       WHERE teacher_id = ? 
         AND status != 'cancelled'
         AND scheduled_date >= ?
-        AND scheduled_date <= ?
-    `).all(teacherId, today.toISOString().split('T')[0], endDate.toISOString().split('T')[0]) as Array<{ scheduled_date: string; scheduled_time: string; duration_minutes: number }>;
+        AND scheduled_date <= ?`,
+      args: [teacherId, today.toISOString().split('T')[0], endDate.toISOString().split('T')[0]]
+    });
+    const bookings = bookingsRes.rows as unknown as Array<{ scheduled_date: string; scheduled_time: string; duration_minutes: number }>;
 
     // 3. Generate slots
     const slots = [];

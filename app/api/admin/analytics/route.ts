@@ -21,29 +21,35 @@ export async function GET(request: Request) {
     const period = searchParams.get('period') || '30'; // days
 
     // Get user counts by role
+    const [studentsCountRes, teachersCountRes, adminsCountRes] = await Promise.all([
+      db.execute({ sql: "SELECT COUNT(*) as count FROM users WHERE role = 'student'", args: [] }),
+      db.execute({ sql: "SELECT COUNT(*) as count FROM users WHERE role = 'teacher'", args: [] }),
+      db.execute({ sql: "SELECT COUNT(*) as count FROM users WHERE role = 'admin'", args: [] })
+    ]);
+
     const userCounts = {
-      students: (db.prepare("SELECT COUNT(*) as count FROM users WHERE role = 'student'").get() as any).count,
-      teachers: (db.prepare("SELECT COUNT(*) as count FROM users WHERE role = 'teacher'").get() as any).count,
-      admins: (db.prepare("SELECT COUNT(*) as count FROM users WHERE role = 'admin'").get() as any).count,
+      students: (studentsCountRes.rows[0] as any).count,
+      teachers: (teachersCountRes.rows[0] as any).count,
+      admins: (adminsCountRes.rows[0] as any).count,
     };
 
     // Get user growth over time
-    const growthQuery = db.prepare(`
-      SELECT 
+    const growthDataRes = await db.execute({
+      sql: `SELECT 
         DATE(created_at) as date,
         role,
         COUNT(*) as count
       FROM users
       WHERE created_at >= date('now', '-' || ? || ' days')
       GROUP BY DATE(created_at), role
-      ORDER BY date DESC
-    `);
-
-    const growthData = growthQuery.all(period);
+      ORDER BY date DESC`,
+      args: [period]
+    });
+    const growthData = growthDataRes.rows;
 
     // Get recent registrations
-    const recentUsersQuery = db.prepare(`
-      SELECT 
+    const recentUsersRes = await db.execute({
+      sql: `SELECT 
         u.id,
         u.email,
         u.role,
@@ -56,34 +62,43 @@ export async function GET(request: Request) {
       LEFT JOIN teachers t ON u.id = t.user_id
       LEFT JOIN admins a ON u.id = a.user_id
       ORDER BY u.created_at DESC
-      LIMIT 20
-    `);
-
-    const recentUsers = recentUsersQuery.all();
+      LIMIT 20`,
+      args: []
+    });
+    const recentUsers = recentUsersRes.rows;
 
     // Get active users (logged in last 7 days)
-    const activeUsersQuery = db.prepare(`
-      SELECT COUNT(DISTINCT user_id) as count
+    const activeUsersRes = await db.execute({
+      sql: `SELECT COUNT(DISTINCT user_id) as count
       FROM user_activity
-      WHERE created_at >= date('now', '-7 days')
-    `);
-
-    const activeUsers = (activeUsersQuery.get() as any).count;
+      WHERE created_at >= date('now', '-7 days')`,
+      args: []
+    });
+    const activeUsers = (activeUsersRes.rows[0] as any).count;
 
     // Get session statistics
+    const [totalSessionsRes, scheduledSessionsRes, completedSessionsRes, cancelledSessionsRes] = await Promise.all([
+      db.execute({ sql: "SELECT COUNT(*) as count FROM sessions", args: [] }),
+      db.execute({ sql: "SELECT COUNT(*) as count FROM sessions WHERE status = 'scheduled'", args: [] }),
+      db.execute({ sql: "SELECT COUNT(*) as count FROM sessions WHERE status = 'completed'", args: [] }),
+      db.execute({ sql: "SELECT COUNT(*) as count FROM sessions WHERE status = 'cancelled'", args: [] })
+    ]);
+
     const sessionStats = {
-      total: (db.prepare("SELECT COUNT(*) as count FROM sessions").get() as any).count,
-      scheduled: (db.prepare("SELECT COUNT(*) as count FROM sessions WHERE status = 'scheduled'").get() as any).count,
-      completed: (db.prepare("SELECT COUNT(*) as count FROM sessions WHERE status = 'completed'").get() as any).count,
-      cancelled: (db.prepare("SELECT COUNT(*) as count FROM sessions WHERE status = 'cancelled'").get() as any).count,
+      total: (totalSessionsRes.rows[0] as any).count,
+      scheduled: (scheduledSessionsRes.rows[0] as any).count,
+      completed: (completedSessionsRes.rows[0] as any).count,
+      cancelled: (cancelledSessionsRes.rows[0] as any).count,
     };
 
     // Get pending teacher approvals count
-    const pendingTeachers = (db.prepare(`
-      SELECT COUNT(*) as count 
+    const pendingTeachersRes = await db.execute({
+      sql: `SELECT COUNT(*) as count 
       FROM users 
-      WHERE role = 'teacher' AND is_verified = 0 AND is_active = 1
-    `).get() as any).count;
+      WHERE role = 'teacher' AND is_verified = 0 AND is_active = 1`,
+      args: []
+    });
+    const pendingTeachers = (pendingTeachersRes.rows[0] as any).count;
 
     return NextResponse.json({
       success: true,
@@ -96,7 +111,7 @@ export async function GET(request: Request) {
         pendingTeachers,
       },
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Get analytics error:', error);
     return NextResponse.json(
       { error: 'Internal server error' },

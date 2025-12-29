@@ -3,8 +3,8 @@ import db from '@/lib/db';
 
 export async function GET() {
   try {
-    const teachers = db.prepare(`
-      SELECT 
+    const teachersRes = await db.execute({
+      sql: `SELECT 
         t.id,
         t.full_name,
         t.specialization,
@@ -17,12 +17,13 @@ export async function GET() {
       FROM teachers t
       JOIN users u ON t.user_id = u.id
       WHERE u.is_active = 1 AND u.is_verified = 1
-      ORDER BY t.average_rating DESC, t.full_name
-    `).all();
+      ORDER BY t.average_rating DESC, t.full_name`,
+      args: []
+    });
 
     return NextResponse.json({
       success: true,
-      data: teachers,
+      data: teachersRes.rows,
     });
   } catch (error) {
     console.error('Get teachers error:', error);

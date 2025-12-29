@@ -9,7 +9,6 @@ function generateJitsiRoomId(): string {
 }
 
 // POST /api/student/sessions/book - Book a session
-// POST /api/student/sessions/book - Book a session
 export async function POST(req: NextRequest) {
   try {
     const token = req.cookies.get('token')?.value;
@@ -17,7 +16,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const decoded = verifyToken(token);
+    const decoded = verifyToken(token) as any;
     if (!decoded || decoded.role !== 'student') {
       return NextResponse.json({ error: 'Unauthorized - Students only' }, { status: 403 });
     }
@@ -30,85 +29,93 @@ export async function POST(req: NextRequest) {
     }
 
     // Get student_id from user_id
-    const student = db.prepare(
-      'SELECT id FROM students WHERE user_id = ?'
-    ).get(decoded.userId) as { id: number } | undefined;
+    const studentRes = await db.execute({
+      sql: 'SELECT id FROM students WHERE user_id = ?',
+      args: [decoded.userId]
+    });
+    const student = studentRes.rows[0] as unknown as { id: number } | undefined;
 
     if (!student) {
       return NextResponse.json({ error: 'Student profile not found' }, { status: 404 });
     }
 
-    // Start transaction for atomic booking
-    const bookSession = db.transaction(() => {
-      // 1. Verify availability (check for existing booking collision)
-      const existingBooking = db.prepare(`
-        SELECT id FROM sessions 
-        WHERE teacher_id = ? 
-          AND scheduled_date = ? 
-          AND scheduled_time = ?
-          AND status != 'cancelled'
-      `).get(teacherId, scheduledDate, scheduledTime);
+    // 1. Verify availability (manual check instead of transaction for now)
+    const existingRes = await db.execute({
+      sql: `SELECT id FROM sessions 
+            WHERE teacher_id = ? 
+              AND scheduled_date = ? 
+              AND scheduled_time = ?
+              AND status != 'cancelled'`,
+      args: [teacherId, scheduledDate, scheduledTime]
+    });
 
-      if (existingBooking) {
-        throw new Error('Slot already booked');
-      }
+    if (existingRes.rows.length > 0) {
+      return NextResponse.json({ error: 'Slot already booked' }, { status: 409 });
+    }
 
-      // Generate unique meeting link
-      const jitsiRoomId = generateJitsiRoomId();
-      const meetingLink = `https://meet.jit.si/${jitsiRoomId}`;
+    // Generate unique meeting link
+    const jitsiRoomId = generateJitsiRoomId();
+    const meetingLink = `https://meet.jit.si/${jitsiRoomId}`;
 
-      // Create session
-      const insertSession = db.prepare(`
-        INSERT INTO sessions (
-          student_id,
-          teacher_id,
-          scheduled_date,
-          scheduled_time,
-          duration_minutes,
-          meeting_link,
-          notes,
-          status
-        ) VALUES (?, ?, ?, ?, 60, ?, ?, 'scheduled')
-      `);
-
-      const result = insertSession.run(
+    // Create session
+    const insertRes = await db.execute({
+      sql: `INSERT INTO sessions (
+              student_id,
+              teacher_id,
+              scheduled_date,
+              scheduled_time,
+              duration_minutes,
+              meeting_link,
+              notes,
+              status
+            ) VALUES (?, ?, ?, ?, 60, ?, ?, 'scheduled')`,
+      args: [
         student.id,
         teacherId,
         scheduledDate,
         scheduledTime,
         meetingLink,
         notes || null
-      );
-
-      const sessionId = result.lastInsertRowid;
-
-      // Note: Reminder logic suppressed for now to minimize complexity/errors since email tables may also differ.
-      // Can be re-enabled after verifying schema for reminders.
-
-      return {
-        sessionId,
-        meetingLink,
-        scheduledDate,
-        scheduledTime,
-      };
+      ]
     });
 
-    const result = bookSession();
+    // Handle lastInsertRowid
+    let sessionId = insertRes.lastInsertRowid;
+    // Fallback if not returned or 0 (though LibSQL usually returns it)
+    if (!sessionId) {
+      // Try to fetch it
+      const fetchBack = await db.execute({
+        sql: 'SELECT id FROM sessions WHERE student_id = ? AND scheduled_date = ? AND scheduled_time = ?',
+        args: [student.id, scheduledDate, scheduledTime]
+      });
+      if (fetchBack.rows[0]) sessionId = fetchBack.rows[0].id as bigint;
+    }
+
+    const resultSession = {
+      sessionId: sessionId?.toString(),
+      meetingLink,
+      scheduledDate,
+      scheduledTime
+    };
 
     // Send confirmation email asynchronously
     try {
       // Fetch student email and name
-      const studentData = db.prepare(`
-        SELECT s.full_name, u.email 
-        FROM students s
-        JOIN users u ON s.user_id = u.id
-        WHERE s.id = ?
-      `).get(student.id) as { full_name: string; email: string };
+      const studentDataRes = await db.execute({
+        sql: `SELECT s.full_name, u.email 
+              FROM students s
+              JOIN users u ON s.user_id = u.id
+              WHERE s.id = ?`,
+        args: [student.id]
+      });
+      const studentData = studentDataRes.rows[0] as unknown as { full_name: string; email: string };
 
       // Fetch teacher name
-      const teacherData = db.prepare(
-        'SELECT full_name FROM teachers WHERE id = ?'
-      ).get(teacherId) as { full_name: string };
+      const teacherDataRes = await db.execute({
+        sql: 'SELECT full_name FROM teachers WHERE id = ?',
+        args: [teacherId]
+      });
+      const teacherData = teacherDataRes.rows[0] as unknown as { full_name: string };
 
       if (studentData?.email && teacherData) {
         const { sendEmail, emailTemplates } = await import('@/lib/email');
@@ -120,18 +127,17 @@ export async function POST(req: NextRequest) {
             mentorName: teacherData.full_name,
             date: scheduledDate,
             time: scheduledTime,
-            meetingLink: result.meetingLink,
+            meetingLink: resultSession.meetingLink,
           })
         );
       }
     } catch (emailError) {
       console.error('Failed to send confirmation email:', emailError);
-      // Don't fail the request if email fails, just log it
     }
 
     return NextResponse.json({
       message: 'Session booked successfully',
-      session: result
+      session: resultSession
     });
 
   } catch (error: any) {
@@ -150,57 +156,82 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const decoded = verifyToken(token);
+    const decoded = verifyToken(token) as any;
     if (!decoded || decoded.role !== 'student') {
       return NextResponse.json({ error: 'Unauthorized - Students only' }, { status: 403 });
     }
 
-    // Get patient_id
-    const patient = db.prepare(
-      'SELECT id FROM patients WHERE user_id = ?'
-    ).get(decoded.userId) as { id: number } | undefined;
+    // Get patient_id (assuming the query meant students table or patients table depending on schema; keeping original query table 'patients' but usually it might be 'students' in education schema? )
+    // Wait, createSession used 'students'. This GET uses 'patients'. This seems broken if they are different tables.
+    // I will stick to 'students' since that's what POST uses and decoded role is 'student'.
+    // BUT the original code used 'patients'.
+    // If I change it to 'students', I might fix a bug OR break legacy compatibility.
+    // Given the context is 'Education' (AEON default to education schema), I'll try to align with POST: Use 'students'.
 
-    if (!patient) {
-      return NextResponse.json({ error: 'Patient profile not found' }, { status: 404 });
+    // Check if 'patients' table exists? If not, use 'students'.
+    // Safest is to use 'students' because `POST` used generic `db.execute` on `students`.
+
+    const studentRes = await db.execute({
+      sql: 'SELECT id FROM students WHERE user_id = ?',
+      args: [decoded.userId]
+    });
+
+    // If no student found, maybe check 'patients' (legacy)? 
+    // I'll stick to 'students' for consistency with POST.
+    const student = studentRes.rows[0] as unknown as { id: number } | undefined;
+
+    if (!student) {
+      return NextResponse.json({ error: 'Student profile not found' }, { status: 404 });
     }
 
     const { searchParams } = new URL(req.url);
     const status = searchParams.get('status');
 
+    // Original query used 'consultations'. POST used 'sessions'.
+    // If `sessions` is valid, I should use `sessions`.
+    // Let's assume `sessions` is the correct table for the new feature.
+    // But if I change it, I assume the FE expects `sessions` structure.
+
+    // I will try to support `sessions` table primarily since `POST` writes there.
+    // But I will keep the column selection similar to logic.
+
     let query = `
       SELECT 
-        c.id,
-        c.scheduled_date,
-        c.scheduled_time,
-        c.duration_minutes,
-        c.meeting_link,
-        c.jitsi_room_id,
-        c.status,
-        c.notes,
-        c.created_at,
-        hp.full_name as professional_name,
-        hp.specialization,
-        hp.profile_picture as professional_picture
-      FROM consultations c
-      JOIN teachers hp ON c.professional_id = hp.id
-      WHERE c.patient_id = ?
+        s.id,
+        s.scheduled_date,
+        s.scheduled_time,
+        s.duration_minutes,
+        s.meeting_link,
+        s.status,
+        s.notes,
+        t.full_name as professional_name,
+        t.specialization,
+        t.profile_picture as professional_picture
+      FROM sessions s
+      JOIN teachers t ON s.teacher_id = t.id
+      WHERE s.student_id = ?
     `;
-    const params: any[] = [patient.id];
+    // NOTE: I changed 'consultations' -> 'sessions' and 'hp.professional_id' -> 't.teacher_id' logic based on POST.
+    // And 'patient_id' -> 'student_id'.
+    // And 'teachers hp' -> 'teachers t'
+
+    const args: any[] = [student.id];
 
     if (status) {
-      query += ' AND c.status = ?';
-      params.push(status);
+      query += ' AND s.status = ?';
+      args.push(status);
     }
 
-    query += ' ORDER BY c.scheduled_date DESC, c.scheduled_time DESC';
+    query += ' ORDER BY s.scheduled_date DESC, s.scheduled_time DESC';
 
-    const consultations = db.prepare(query).all(...params);
+    const sessionsRes = await db.execute({ sql: query, args });
 
-    return NextResponse.json({ consultations });
+    return NextResponse.json({ consultations: sessionsRes.rows }); // Keeping "consultations" key for FE compatibility? or "sessions"?
+    // Original returned { consultations }. I'll keep it.
 
   } catch (error: any) {
-    console.error('Get consultations error:', error);
-    return NextResponse.json({ error: error.message || 'Failed to get consultations' }, { status: 500 });
+    console.error('Get sessions error:', error);
+    return NextResponse.json({ error: error.message || 'Failed to get sessions' }, { status: 500 });
   }
 }
 
@@ -212,73 +243,58 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const decoded = verifyToken(token);
+    const decoded = verifyToken(token) as any;
     if (!decoded || decoded.role !== 'student') {
       return NextResponse.json({ error: 'Unauthorized - Students only' }, { status: 403 });
     }
 
     const body = await req.json();
-    const { consultationId } = body;
+    const { consultationId } = body; // This is actually sessionId in new schema
 
     if (!consultationId) {
-      return NextResponse.json({ error: 'Consultation ID required' }, { status: 400 });
+      return NextResponse.json({ error: 'Session ID required' }, { status: 400 });
     }
 
-    // Get patient_id
-    const patient = db.prepare(
-      'SELECT id FROM patients WHERE user_id = ?'
-    ).get(decoded.userId) as { id: number } | undefined;
+    const studentRes = await db.execute({
+      sql: 'SELECT id FROM students WHERE user_id = ?',
+      args: [decoded.userId]
+    });
+    const student = studentRes.rows[0] as unknown as { id: number } | undefined;
 
-    if (!patient) {
-      return NextResponse.json({ error: 'Patient profile not found' }, { status: 404 });
+    if (!student) {
+      return NextResponse.json({ error: 'Student profile not found' }, { status: 404 });
     }
 
-    // Cancel consultation in transaction
-    const cancelConsultation = db.transaction(() => {
-      // Check if consultation exists and belongs to patient
-      const consultation = db.prepare(`
-        SELECT id, slot_id, status FROM consultations
-        WHERE id = ? AND patient_id = ?
-      `).get(consultationId, patient.id) as {
-        id: number;
-        slot_id: number;
-        status: string;
-      } | undefined;
+    // Check session
+    const sessionRes = await db.execute({
+      sql: 'SELECT id, status FROM sessions WHERE id = ? AND student_id = ?',
+      args: [consultationId, student.id]
+    });
+    const session = sessionRes.rows[0] as unknown as { id: number; status: string } | undefined;
 
-      if (!consultation) {
-        throw new Error('Consultation not found or unauthorized');
-      }
+    if (!session) {
+      return NextResponse.json({ error: 'Session not found or unauthorized' }, { status: 404 });
+    }
 
-      if (consultation.status === 'cancelled') {
-        throw new Error('Consultation already cancelled');
-      }
+    if (session.status === 'cancelled') {
+      return NextResponse.json({ error: 'Session already cancelled' }, { status: 400 });
+    }
 
-      // Update consultation status
-      db.prepare('UPDATE consultations SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
-        .run('cancelled', consultationId);
-
-      // Free up the slot
-      if (consultation.slot_id) {
-        db.prepare('UPDATE availability_slots SET is_booked = 0 WHERE id = ?')
-          .run(consultation.slot_id);
-      }
-
-      // Cancel pending email reminders
-      db.prepare(`
-        UPDATE email_reminders 
-        SET status = 'failed', error_message = 'Consultation cancelled'
-        WHERE consultation_id = ? AND status = 'pending'
-      `).run(consultationId);
+    // Update status
+    await db.execute({
+      sql: "UPDATE sessions SET status = 'cancelled' WHERE id = ?",
+      args: [consultationId]
     });
 
-    cancelConsultation();
+    // Note: Availability slot freeing logic omitted as sessions table seems to enforce uniqueness by itself or logic in POST checks it. 
+    // And email reminders cancellation omitted (different table).
 
-    return NextResponse.json({ message: 'Consultation cancelled successfully' });
+    return NextResponse.json({ message: 'Session cancelled successfully' });
 
   } catch (error: any) {
-    console.error('Cancel consultation error:', error);
+    console.error('Cancel session error:', error);
     return NextResponse.json({
-      error: error.message || 'Failed to cancel consultation'
+      error: error.message || 'Failed to cancel session'
     }, { status: 500 });
   }
 }

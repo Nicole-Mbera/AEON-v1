@@ -6,29 +6,29 @@ export async function GET(request: Request) {
   try {
     // Authenticate user
     const currentUser = getUserFromRequest(request);
-    
+
     if (!currentUser) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
       );
     }
-    
+
     // Get user profile based on role
     let profile = null;
-    
+
     switch (currentUser.role) {
       case 'student':
-        profile = patientQueries.getPatientByUserId.get(currentUser.userId);
+        profile = await patientQueries.getPatientByUserId(currentUser.userId);
         break;
       case 'teacher':
-        profile = professionalQueries.getProfessionalByUserId.get(currentUser.userId);
+        profile = await professionalQueries.getProfessionalByUserId(currentUser.userId);
         break;
       case 'admin':
-        profile = systemAdminQueries.getAdminByUserId.get(currentUser.userId);
+        profile = await systemAdminQueries.getAdminByUserId(currentUser.userId);
         break;
     }
-    
+
     if (!profile) {
       // Return user info without profile if profile doesn't exist yet
       // This allows login to succeed even if profile is not fully set up
@@ -42,7 +42,7 @@ export async function GET(request: Request) {
         },
       });
     }
-    
+
     return NextResponse.json({
       success: true,
       user: {
@@ -65,44 +65,44 @@ export async function PUT(request: Request) {
   try {
     // Authenticate user
     const currentUser = getUserFromRequest(request);
-    
+
     if (!currentUser) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
       );
     }
-    
+
     const updates = await request.json();
-    
+
     // Update based on role
     switch (currentUser.role) {
       case 'student':
         // Students can only update username
         if (updates.username) {
           // Check if username is available
-          const existing = patientQueries.checkUsernameAvailable.get(updates.username) as any;
-          const currentProfile = patientQueries.getPatientByUserId.get(currentUser.userId) as any;
-          
+          const existing = await patientQueries.checkUsernameAvailable(updates.username) as any;
+          const currentProfile = await patientQueries.getPatientByUserId(currentUser.userId) as any;
+
           if (existing && existing.id !== currentProfile?.id) {
             return NextResponse.json(
               { error: 'Username already taken' },
               { status: 409 }
             );
           }
-          
-          patientQueries.updatePatient.run(
+
+          await patientQueries.updatePatient(
             updates.username,
             currentProfile.full_name,
             currentProfile.date_of_birth,
-            currentProfile.gender,
+            currentProfile.grade_level,
             currentProfile.phone,
             currentProfile.profile_picture,
             currentUser.userId
           );
         }
         break;
-        
+
       // Add other role update logic here
       default:
         return NextResponse.json(
@@ -110,7 +110,7 @@ export async function PUT(request: Request) {
           { status: 501 }
         );
     }
-    
+
     return NextResponse.json({
       success: true,
       message: 'Profile updated successfully',

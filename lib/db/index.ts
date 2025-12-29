@@ -1,224 +1,301 @@
-import Database from 'better-sqlite3';
-import { readFileSync } from 'fs';
-import { join } from 'path';
+import { createClient, Client } from '@libsql/client';
 import bcrypt from 'bcryptjs';
+import dotenv from 'dotenv';
 
-// initialize our database
-const dbPath = process.env.DATABASE_PATH || join(process.cwd(), 'aeon.db');
-const db = new Database(dbPath);
+dotenv.config();
 
-// foreign keys enabled
-db.pragma('foreign_keys = ON');
+// Create client
+const url = process.env.TURSO_DATABASE_URL || 'file:aeon.db';
+const authToken = process.env.TURSO_AUTH_TOKEN;
 
-// initialize database schema
-export function initializeDatabase() {
-  try {
-    const schemaPath = join(process.cwd(), 'lib', 'db', 'schema-education.sql');
-    const schema = readFileSync(schemaPath, 'utf-8');
+const client: Client = createClient({
+  url,
+  authToken,
+});
 
-    // execute the schema
-    db.exec(schema);
+export default client;
 
-    // create default system admin (for testing)
-    createDefaultSystemAdmin();
+// Helper to handle both LibSQL and local file URL differences in returned structure if necessary
+// But standard client.execute returns { rows: [], columns: [] }
 
-    console.log('Database initialized successfully');
-  } catch (error) {
-    console.error('Database initialization error:', error);
-    throw error;
-  }
-}
-
-// auto-initialize on first import in development
-if (process.env.NODE_ENV !== 'production') {
-  try {
-    // are tables exist, or not?
-    const tableCheck = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='users'").get();
-    if (!tableCheck) {
-      initializeDatabase();
-    }
-  } catch (error) {
-    initializeDatabase();
-  }
-}
-
-function createDefaultSystemAdmin() {
-  const checkAdmin = db.prepare('SELECT id FROM users WHERE email = ?').get('a.niyonseng@alustudent.com');
-
-  if (!checkAdmin) {
-    const passwordHash = bcrypt.hashSync('admin123', 10);
-
-    const insertUser = db.prepare(`
-      INSERT INTO users (email, password_hash, role, is_verified, is_active)
-      VALUES (?, ?, 'admin', 1, 1)
-    `);
-    const userResult = insertUser.run('a.niyonseng@alustudent.com', passwordHash);
-
-    const insertAdmin = db.prepare(`
-      INSERT INTO admins (user_id, full_name, phone)
-      VALUES (?, ?, ?)
-    `);
-    insertAdmin.run(userResult.lastInsertRowid, 'Albert Niyonsenga', '+250788123456');
-
-    console.log('Default system admin created');
-  }
-}
-
-// exporting database instance
-export default db;
-
+// --- User Queries ---
 export const userQueries = {
-  getUserByEmail: db.prepare('SELECT * FROM users WHERE email = ?'),
+  getUserByEmail: async (email: string) => {
+    const rs = await client.execute({ sql: 'SELECT * FROM users WHERE email = ?', args: [email] });
+    return rs.rows[0];
+  },
 
-  getUserById: db.prepare('SELECT * FROM users WHERE id = ?'),
+  getUserById: async (id: number | string) => {
+    const rs = await client.execute({ sql: 'SELECT * FROM users WHERE id = ?', args: [id] });
+    return rs.rows[0];
+  },
 
-  createUser: db.prepare(`
-    INSERT INTO users (email, password_hash, role, is_verified, is_active)
-    VALUES (?, ?, ?, ?, ?)
-  `),
+  createUser: async (email: string, passwordHash: string, role: string, isVerified: number, isActive: number) => {
+    const rs = await client.execute({
+      sql: 'INSERT INTO users (email, password_hash, role, is_verified, is_active) VALUES (?, ?, ?, ?, ?)',
+      args: [email, passwordHash, role, isVerified, isActive]
+    });
+    return rs;
+  },
 
-  updateUser: db.prepare(`
-    UPDATE users 
-    SET email = ?, role = ?, is_verified = ?, is_active = ?, updated_at = CURRENT_TIMESTAMP
-    WHERE id = ?
-  `),
+  updateUser: async (email: string, role: string, isVerified: number, isActive: number, id: number | string) => {
+    const rs = await client.execute({
+      sql: `UPDATE users 
+            SET email = ?, role = ?, is_verified = ?, is_active = ?, updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?`,
+      args: [email, role, isVerified, isActive, id]
+    });
+    return rs;
+  },
 
-  deleteUser: db.prepare('DELETE FROM users WHERE id = ?'),
+  deleteUser: async (id: number | string) => {
+    return await client.execute({ sql: 'DELETE FROM users WHERE id = ?', args: [id] });
+  },
 
-  getUsersByRole: db.prepare('SELECT * FROM users WHERE role = ?'),
+  getUsersByRole: async (role: string) => {
+    const rs = await client.execute({ sql: 'SELECT * FROM users WHERE role = ?', args: [role] });
+    return rs.rows;
+  },
 
-  getAllUsers: db.prepare('SELECT * FROM users ORDER BY created_at DESC LIMIT ? OFFSET ?'),
+  getAllUsers: async (limit: number, offset: number) => {
+    const rs = await client.execute({
+      sql: 'SELECT * FROM users ORDER BY created_at DESC LIMIT ? OFFSET ?',
+      args: [limit, offset]
+    });
+    return rs.rows;
+  },
 
-  countUsersByRole: db.prepare('SELECT COUNT(*) as count FROM users WHERE role = ?'),
+  countUsersByRole: async (role: string) => {
+    const rs = await client.execute({ sql: 'SELECT COUNT(*) as count FROM users WHERE role = ?', args: [role] });
+    return rs.rows[0];
+  },
 };
 
-// Patient queries
+// --- Patient Queries ---
 export const patientQueries = {
-  getPatientByUserId: db.prepare(`
-    SELECT p.*, u.email, u.is_verified, u.is_active, u.created_at
-    FROM students p
-    JOIN users u ON p.user_id = u.id
-    WHERE p.user_id = ?
-  `),
+  getPatientByUserId: async (userId: number | string) => {
+    const rs = await client.execute({
+      sql: `SELECT p.*, u.email, u.is_verified, u.is_active, u.created_at
+            FROM students p
+            JOIN users u ON p.user_id = u.id
+            WHERE p.user_id = ?`,
+      args: [userId]
+    });
+    return rs.rows[0];
+  },
 
-  getPatientByUsername: db.prepare(`
-    SELECT p.*, u.email, u.is_verified, u.is_active, u.created_at
-    FROM students p
-    JOIN users u ON p.user_id = u.id
-    WHERE p.username = ?
-  `),
+  getPatientByUsername: async (username: string) => {
+    const rs = await client.execute({
+      sql: `SELECT p.*, u.email, u.is_verified, u.is_active, u.created_at
+            FROM students p
+            JOIN users u ON p.user_id = u.id
+            WHERE p.username = ?`,
+      args: [username]
+    });
+    return rs.rows[0];
+  },
 
-  createPatient: db.prepare(`
-    INSERT INTO students (user_id, username, full_name, date_of_birth, grade_level, phone, profile_picture)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
-  `),
+  createPatient: async (
+    userId: number | string,
+    username: string,
+    fullName: string | null,
+    dob: string | null,
+    gradeLevel: string | null,
+    phone: string | null,
+    profilePicture: string | null
+  ) => {
+    return await client.execute({
+      sql: `INSERT INTO students (user_id, username, full_name, date_of_birth, grade_level, phone, profile_picture)
+            VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      args: [userId, username, fullName, dob, gradeLevel, phone, profilePicture]
+    });
+  },
 
-  // update patient
-  updatePatient: db.prepare(`
-    UPDATE students 
-    SET username = ?, full_name = ?, date_of_birth = ?, grade_level = ?, phone = ?, profile_picture = ?
-    WHERE user_id = ?
-  `),
+  updatePatient: async (
+    username: string,
+    fullName: string | null,
+    dob: string | null,
+    gradeLevel: string | null,
+    phone: string | null,
+    profilePicture: string | null,
+    userId: number | string
+  ) => {
+    return await client.execute({
+      sql: `UPDATE students 
+            SET username = ?, full_name = ?, date_of_birth = ?, grade_level = ?, phone = ?, profile_picture = ?
+            WHERE user_id = ?`,
+      args: [username, fullName, dob, gradeLevel, phone, profilePicture, userId]
+    });
+  },
 
-  checkUsernameAvailable: db.prepare('SELECT id FROM students WHERE username = ?'),
+  checkUsernameAvailable: async (username: string) => {
+    const rs = await client.execute({ sql: 'SELECT id FROM students WHERE username = ?', args: [username] });
+    return rs.rows[0];
+  },
 };
 
-// Health professional queries
+// --- Professional (Teacher) Queries ---
 export const professionalQueries = {
-  getProfessionalByUserId: db.prepare(`
-    SELECT hp.*, u.email, u.is_verified, u.is_active
-    FROM teachers hp
-    JOIN users u ON hp.user_id = u.id
-    WHERE hp.user_id = ?
-  `),
+  getProfessionalByUserId: async (userId: number | string) => {
+    const rs = await client.execute({
+      sql: `SELECT hp.*, u.email, u.is_verified, u.is_active
+            FROM teachers hp
+            JOIN users u ON hp.user_id = u.id
+            WHERE hp.user_id = ?`,
+      args: [userId]
+    });
+    return rs.rows[0];
+  },
 
-  getAllProfessionals: db.prepare(`
-    SELECT hp.*, u.email
-    FROM teachers hp
-    JOIN users u ON hp.user_id = u.id
-    ORDER BY hp.full_name
-  `),
+  getAllProfessionals: async () => {
+    const rs = await client.execute({
+      sql: `SELECT hp.*, u.email
+            FROM teachers hp
+            JOIN users u ON hp.user_id = u.id
+            ORDER BY hp.full_name`,
+      args: []
+    });
+    return rs.rows;
+  },
 
-  createProfessional: db.prepare(`
-    INSERT INTO teachers (user_id, full_name, bio, specialization, years_of_experience, phone, profile_picture, license_number, institution_name, country, contact_email, mission, documents)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `),
+  createProfessional: async (
+    userId: number | string,
+    fullName: string,
+    bio: string | null,
+    specialization: string | null,
+    yearsOfExperience: number | string | null,
+    phone: string | null,
+    profilePicture: string | null,
+    licenseNumber: string | null,
+    institutionName: string | null,
+    country: string | null,
+    contactEmail: string | null,
+    mission: string | null,
+    documents: string | null
+  ) => {
+    return await client.execute({
+      sql: `INSERT INTO teachers (user_id, full_name, bio, specialization, years_of_experience, phone, profile_picture, license_number, institution_name, country, contact_email, mission, documents)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      args: [
+        userId, fullName, bio, specialization, yearsOfExperience, phone, profilePicture,
+        licenseNumber, institutionName, country, contactEmail, mission, documents
+      ]
+    });
+  },
 
-  updateProfessional: db.prepare(`
-    UPDATE teachers 
-    SET full_name = ?, bio = ?, specialization = ?, years_of_experience = ?, phone = ?, profile_picture = ?
-    WHERE user_id = ?
-  `),
+  updateProfessional: async (
+    fullName: string,
+    bio: string | null,
+    specialization: string | null,
+    yearsOfExperience: number | string | null,
+    phone: string | null,
+    profilePicture: string | null,
+    userId: number | string
+  ) => {
+    return await client.execute({
+      sql: `UPDATE teachers 
+            SET full_name = ?, bio = ?, specialization = ?, years_of_experience = ?, phone = ?, profile_picture = ?
+            WHERE user_id = ?`,
+      args: [fullName, bio, specialization, yearsOfExperience, phone, profilePicture, userId]
+    });
+  },
 
-  getProfessionalsByInstitution: db.prepare(`
-    SELECT hp.*, u.email
-    FROM teachers hp
-    JOIN users u ON hp.user_id = u.id
-    WHERE 1=1
-  `),
+  getProfessionalsByInstitution: async () => {
+    const rs = await client.execute({
+      sql: `SELECT hp.*, u.email
+            FROM teachers hp
+            JOIN users u ON hp.user_id = u.id
+            WHERE 1=1`,
+      args: []
+    });
+    return rs.rows;
+  },
 };
 
-// Deprecated institution queries (kept for backward compatibility but not used)
-export const institutionQueries = {
-  getInstitutionById: () => null,
-  getAllInstitutions: () => [],
-  getPendingInstitutions: () => [],
-  createInstitution: () => null,
-  updateInstitution: () => null,
-  updateVerificationStatus: () => null,
-};
-
-// Deprecated institutional admin queries (kept for backward compatibility but not used)
+// --- Institutional Admin Queries (Deprecated) ---
 export const institutionalAdminQueries = {
-  getAdminByUserId: () => null,
-  createInstitutionalAdmin: () => null,
-  getAdminsByInstitution: () => [],
+  getAdminByUserId: async () => null,
+  createInstitutionalAdmin: async () => null,
+  getAdminsByInstitution: async () => [],
 };
 
-// System admin queries
+// --- System Admin Queries ---
 export const systemAdminQueries = {
-  getAdminByUserId: db.prepare(`
-    SELECT sa.*, u.email
-    FROM admins sa
-    JOIN users u ON sa.user_id = u.id
-    WHERE sa.user_id = ?
-  `),
+  getAdminByUserId: async (userId: number | string) => {
+    const rs = await client.execute({
+      sql: `SELECT sa.*, u.email
+            FROM admins sa
+            JOIN users u ON sa.user_id = u.id
+            WHERE sa.user_id = ?`,
+      args: [userId]
+    });
+    return rs.rows[0];
+  },
 
-  createSystemAdmin: db.prepare(`
-    INSERT INTO admins (user_id, full_name, phone)
-    VALUES (?, ?, ?)
-  `),
+  createSystemAdmin: async (userId: number | string, fullName: string, phone: string | null) => {
+    return await client.execute({
+      sql: `INSERT INTO admins (user_id, full_name, phone)
+            VALUES (?, ?, ?)`,
+      args: [userId, fullName, phone]
+    });
+  },
 
-  getAllSystemAdmins: db.prepare(`
-    SELECT sa.*, u.email, u.is_active
-    FROM admins sa
-    JOIN users u ON sa.user_id = u.id
-  `),
+  getAllSystemAdmins: async () => {
+    const rs = await client.execute({
+      sql: `SELECT sa.*, u.email, u.is_active
+            FROM admins sa
+            JOIN users u ON sa.user_id = u.id`,
+      args: []
+    });
+    return rs.rows;
+  },
 };
 
-// User activity logging
+// --- Activity Queries ---
 export const activityQueries = {
-  logActivity: db.prepare(`
-    INSERT INTO user_activity (user_id, activity_type, details)
-    VALUES (?, ?, ?)
-  `),
+  logActivity: async (userId: number | string, activityType: string, details: string) => {
+    return await client.execute({
+      sql: `INSERT INTO user_activity (user_id, activity_type, details)
+            VALUES (?, ?, ?)`,
+      args: [userId, activityType, details]
+    });
+  },
 
-  getRecentActivities: db.prepare(`
-    SELECT ua.*, u.email
-    FROM user_activity ua
-    JOIN users u ON ua.user_id = u.id
-    ORDER BY ua.created_at DESC
-    LIMIT ? OFFSET ?
-  `),
+  getRecentActivities: async (limit: number, offset: number) => {
+    const rs = await client.execute({
+      sql: `SELECT ua.*, u.email
+            FROM user_activity ua
+            JOIN users u ON ua.user_id = u.id
+            ORDER BY ua.created_at DESC
+            LIMIT ? OFFSET ?`,
+      args: [limit, offset]
+    });
+    return rs.rows;
+  },
 
-  getUserGrowthStats: db.prepare(`
-    SELECT 
-      role,
-      DATE(created_at) as date,
-      COUNT(*) as count
-    FROM users
-    WHERE created_at >= date('now', '-30 days')
-    GROUP BY role, DATE(created_at)
-    ORDER BY date DESC
-  `),
+  getUserGrowthStats: async () => {
+    const rs = await client.execute({
+      sql: `SELECT 
+              role,
+              DATE(created_at) as date,
+              COUNT(*) as count
+            FROM users
+            WHERE created_at >= date('now', '-30 days')
+            GROUP BY role, DATE(created_at)
+            ORDER BY date DESC`,
+      args: []
+    });
+    return rs.rows;
+  },
 };
+
+// --- Initialization Logic (kept for local/manual init) ---
+// Note: LibSQL doesn't verify schema automatically in the same way, 
+// usually you run migrations externally. But we can keep a helper.
+
+export async function initializeDatabase() {
+  // This function is less relevant for LibSQL in serverless,
+  // usually you migrate your DB once.
+  // For local dev with file: protocol, we could still execute schema.
+  console.warn("initializeDatabase called - manual migration recommended for Turso/LibSQL");
+}

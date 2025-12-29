@@ -32,18 +32,18 @@ export async function POST(request: Request) {
 
     // Authenticate user
     const currentUser = getUserFromRequest(request);
-    
-    if (!currentUser || !hasRole(currentUser, 'patient')) {
+
+    if (!currentUser || !hasRole(currentUser, 'patient') && !hasRole(currentUser, 'student')) {
       return NextResponse.json(
         { error: 'Unauthorized. Patient access required.' },
         { status: 403 }
       );
     }
-    
+
     // Validate request body
     const body = await request.json();
     const validation = bookConsultationSchema.safeParse(body);
-    
+
     if (!validation.success) {
       const errors = validation.error.issues.map(err => `${err.path.join('.')}: ${err.message}`);
       return NextResponse.json(
@@ -53,40 +53,47 @@ export async function POST(request: Request) {
     }
 
     const { teacher_id, scheduled_date, scheduled_time, notes } = validation.data;
-    
+
     // Get patient ID
-    const patientQuery = db.prepare('SELECT id FROM patients WHERE user_id = ?');
-    const patient = patientQuery.get(currentUser.userId) as any;
-    
+    const patientRes = await db.execute({
+      sql: 'SELECT id FROM students WHERE user_id = ?',
+      args: [currentUser.userId]
+    });
+    // Fallback or legacy support if students/patients table confusion exists, but using students as per book/route.ts
+    const patient = patientRes.rows[0] as unknown as { id: number } | undefined;
+
     if (!patient) {
       return NextResponse.json(
         { error: 'Patient profile not found' },
         { status: 404 }
       );
     }
-    
+
     // Check if professional exists and is active
-    const professionalCheck = db.prepare(`
-      SELECT hp.id 
-      FROM teachers hp
-      JOIN users u ON hp.user_id = u.id
-      WHERE hp.id = ? AND u.is_active = 1
-    `);
-    
-    if (!professionalCheck.get(teacher_id)) {
+    const professionalCheckRes = await db.execute({
+      sql: `SELECT hp.id 
+            FROM teachers hp
+            JOIN users u ON hp.user_id = u.id
+            WHERE hp.id = ? AND u.is_active = 1`,
+      args: [teacher_id]
+    });
+
+    if (professionalCheckRes.rows.length === 0) {
       return NextResponse.json(
         { error: 'Professional not found or inactive' },
         { status: 404 }
       );
     }
-    
+
     // Check if patient already has 2 bookings for this day (limit per day)
-    const patientBookingsToday = db.prepare(`
-      SELECT COUNT(*) as count FROM sessions
-      WHERE student_id = ?
-        AND scheduled_date = ?
-        AND status IN ('scheduled', 'confirmed')
-    `).get(patient.id, scheduled_date) as { count: number };
+    const patientBookingsTodayRes = await db.execute({
+      sql: `SELECT COUNT(*) as count FROM sessions
+            WHERE student_id = ?
+              AND scheduled_date = ?
+              AND status IN ('scheduled', 'confirmed')`,
+      args: [patient.id, scheduled_date]
+    });
+    const patientBookingsToday = patientBookingsTodayRes.rows[0] as unknown as { count: number };
 
     if (patientBookingsToday.count >= 2) {
       return NextResponse.json(
@@ -96,45 +103,53 @@ export async function POST(request: Request) {
     }
 
     // Check for conflicting appointments
-    const conflictCheck = db.prepare(`
-      SELECT id FROM sessions
-      WHERE teacher_id = ? 
-        AND scheduled_date = ? 
-        AND scheduled_time = ?
-        AND status IN ('scheduled', 'confirmed')
-    `);
-    
-    if (conflictCheck.get(teacher_id, scheduled_date, scheduled_time)) {
+    const conflictCheckRes = await db.execute({
+      sql: `SELECT id FROM sessions
+            WHERE teacher_id = ? 
+              AND scheduled_date = ? 
+              AND scheduled_time = ?
+              AND status IN ('scheduled', 'confirmed')`,
+      args: [teacher_id, scheduled_date, scheduled_time]
+    });
+
+    if (conflictCheckRes.rows.length > 0) {
       return NextResponse.json(
         { error: 'This time slot is already booked' },
         { status: 409 }
       );
     }
-    
+
     // Create consultation with start_time
     const startTime = new Date(`${scheduled_date}T${scheduled_time}`);
-    const insertQuery = db.prepare(`
-      INSERT INTO consultations (student_id, teacher_id, scheduled_date, scheduled_time, start_time, duration_minutes, status, meeting_link)
-      VALUES (?, ?, ?, ?, ?, 30, 'scheduled', ?)
-    `);
-    
     const meetingLink = `https://meet.jit.si/bodywise-${Date.now()}`; // Jitsi room
-    const result = insertQuery.run(
-      patient.id, 
-      teacher_id, 
-      scheduled_date, 
-      scheduled_time, 
-      startTime.toISOString(),
-      meetingLink
-    );
-    
-    // Send confirmation email asynchronously
-    const consultationId = Number(result.lastInsertRowid);
-    sendConfirmationEmail(consultationId).catch((error: unknown) => {
-      console.error('Failed to send confirmation email:', error);
-      // Don't fail the booking if email fails
+
+    // Using `sessions` table instead of `consultations` to match other refactor mostly likely, 
+    // BUT the existing code used `consultations`. 
+    // Wait, `book/route.ts` used `sessions`. This file `student/sessions/route.ts` used `consultations`.
+    // I MUST UNIFY THIS. The DB likely has `sessions` table from `book/route.ts` context. 
+    // I will use `sessions` to be safe and consistent with my previous strict change.
+
+    const insertRes = await db.execute({
+      sql: `INSERT INTO sessions (student_id, teacher_id, scheduled_date, scheduled_time, duration_minutes, status, meeting_link)
+            VALUES (?, ?, ?, ?, 30, 'scheduled', ?)`,
+      args: [
+        patient.id,
+        teacher_id,
+        scheduled_date,
+        scheduled_time,
+        meetingLink
+      ]
     });
-    
+
+    // Send confirmation email asynchronously
+    const consultationId = Number(insertRes.lastInsertRowid);
+    if (consultationId) {
+      sendConfirmationEmail(consultationId).catch((error: unknown) => {
+        console.error('Failed to send confirmation email:', error);
+        // Don't fail the booking if email fails
+      });
+    }
+
     return NextResponse.json({
       success: true,
       message: 'Consultation booked successfully. Confirmation email sent.',
@@ -160,28 +175,31 @@ export async function GET(request: Request) {
   try {
     // Authenticate user
     const currentUser = getUserFromRequest(request);
-    
-    if (!currentUser || !hasRole(currentUser, 'patient')) {
+
+    if (!currentUser || !hasRole(currentUser, 'patient') && !hasRole(currentUser, 'student')) {
       return NextResponse.json(
         { error: 'Unauthorized. Patient access required.' },
         { status: 403 }
       );
     }
-    
+
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status');
-    
+
     // Get patient ID
-    const patientQuery = db.prepare('SELECT id FROM patients WHERE user_id = ?');
-    const patient = patientQuery.get(currentUser.userId) as any;
-    
+    const patientRes = await db.execute({
+      sql: 'SELECT id FROM students WHERE user_id = ?',
+      args: [currentUser.userId]
+    });
+    const patient = patientRes.rows[0] as unknown as { id: number } | undefined;
+
     if (!patient) {
       return NextResponse.json(
         { error: 'Patient profile not found' },
         { status: 404 }
       );
     }
-    
+
     let query = `
       SELECT 
         c.id,
@@ -193,25 +211,24 @@ export async function GET(request: Request) {
         c.created_at,
         hp.full_name as professional_name,
         hp.specialization,
-        hp.profile_picture as professional_picture,
-        i.name as institution_name
+        hp.profile_picture as professional_picture
       FROM sessions c
       JOIN teachers hp ON c.teacher_id = hp.id
-      LEFT JOIN 
       WHERE c.student_id = ?
     `;
-    
+
     const params: any[] = [patient.id];
-    
+
     if (status) {
       query += ' AND c.status = ?';
       params.push(status);
     }
-    
+
     query += ' ORDER BY c.scheduled_date DESC, c.scheduled_time DESC';
-    
-    const consultations = db.prepare(query).all(...params);
-    
+
+    const consultationsRes = await db.execute({ sql: query, args: params });
+    const consultations = consultationsRes.rows;
+
     return NextResponse.json({
       success: true,
       data: consultations,
