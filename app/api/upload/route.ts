@@ -1,8 +1,8 @@
 
 import { NextResponse } from 'next/server';
-import { writeFile, mkdir } from 'fs/promises';
-import { join } from 'path';
 import { randomUUID } from 'crypto';
+import { PutObjectCommand } from '@aws-sdk/client-s3';
+import { s3Client, bucketName, publicUrlPrefix } from '@/lib/s3';
 
 export async function POST(request: Request) {
     try {
@@ -40,16 +40,23 @@ export async function POST(request: Request) {
         const originalName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_'); // Sanitize filename
         const fileName = `${randomUUID()}-${originalName}`;
 
-        // Ensure uploads directory exists
-        const uploadDir = join(process.cwd(), 'public', 'uploads');
-        await mkdir(uploadDir, { recursive: true });
+        // Upload to S3 (Supabase)
+        const command = new PutObjectCommand({
+            Bucket: bucketName,
+            Key: fileName,
+            Body: buffer,
+            ContentType: file.type,
+            ACL: 'public-read', // Ensure it's public
+        });
 
-        // Save file
-        const path = join(uploadDir, fileName);
-        await writeFile(path, buffer);
+        await s3Client.send(command);
 
-        // Return existing public URL
-        const publicUrl = `/uploads/${fileName}`;
+        // Construct public URL
+        // If publicUrlPrefix is set (from env), use it. Otherwise try to construct it.
+        // Usually: https://<project>.supabase.co/storage/v1/object/public/<bucket>/<filename>
+        const publicUrl = publicUrlPrefix 
+            ? `${publicUrlPrefix}/${fileName}`
+            : `https://your-project.supabase.co/storage/v1/object/public/${bucketName}/${fileName}`; // Fallback, though env var should be present
 
         return NextResponse.json({
             success: true,
