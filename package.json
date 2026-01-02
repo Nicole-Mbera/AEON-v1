@@ -12,10 +12,12 @@
     "docs:serve": "npx serve public/api-docs -p 3001"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.958.0",
     "@libsql/client": "^0.15.15",
     "@sendgrid/mail": "^8.1.6",
     "@stripe/react-stripe-js": "^5.4.1",
     "@stripe/stripe-js": "^8.5.3",
+    "@supabase/supabase-js": "^2.89.0",
     "@types/bcryptjs": "^3.0.0",
     "@types/better-sqlite3": "^7.6.13",
     "@types/jsonwebtoken": "^9.0.10",

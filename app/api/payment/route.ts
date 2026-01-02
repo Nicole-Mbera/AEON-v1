@@ -2,11 +2,20 @@
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
+const stripeKey = process.env.STRIPE_SECRET_KEY;
+const stripe = stripeKey ? new Stripe(stripeKey) : null;
 
 export async function POST(request: Request) {
   try {
     const { amount, email, name } = await request.json();
+
+    if (!stripe) {
+      console.error("Stripe is not initialized. Missing STRIPE_SECRET_KEY");
+      return NextResponse.json(
+        { error: "Payment service unavailable" },
+        { status: 503 }
+      );
+    }
 
     // Validate amount
     if (!amount || amount < 100) { // Minimum $1.00
