@@ -165,7 +165,7 @@ export default function TeacherSchedulePage() {
     const today = new Date();
     return date.toDateString() === today.toDateString();
   };
-  //testS
+  //test12334
   if (loading) {
     return (
       <DashboardShell
@@ -233,12 +233,12 @@ export default function TeacherSchedulePage() {
                 <div
                   key={index}
                   className={`min-h-[80px] rounded-xl border p-2 transition-all ${!day.isCurrentMonth
-                      ? 'border-transparent bg-gray-50 text-gray-400'
-                      : isToday(day.date)
-                        ? 'border-[gray-300] bg-[gray-50] ring-2 ring-[gray-300]/20'
-                        : hasAvailability
-                          ? 'border-[gray-200] bg-white hover:border-[gray-300] hover:shadow-lg cursor-pointer'
-                          : 'border-[gray-200] bg-white'
+                    ? 'border-transparent bg-gray-50 text-gray-400'
+                    : isToday(day.date)
+                      ? 'border-[gray-300] bg-[gray-50] ring-2 ring-[gray-300]/20'
+                      : hasAvailability
+                        ? 'border-[gray-200] bg-white hover:border-[gray-300] hover:shadow-lg cursor-pointer'
+                        : 'border-[gray-200] bg-white'
                     }`}
                 >
                   <div className="text-right text-sm font-medium text-[black]">
