@@ -30,18 +30,22 @@ export async function GET(request: Request) {
     // Get unique students who have booked this teacher
     const studentsRes = await db.execute({
       sql: `SELECT DISTINCT
-        p.id,
+        p.user_id,
+        p.username,
         p.full_name,
-        p.age,
-        p.gender,
-        p.phone,
+        p.grade_level,
+        p.profile_picture,
+        p.english_proficiency,
+        p.proficiency_certificate,
         u.email,
-        (SELECT MAX(scheduled_date) FROM sessions WHERE student_id = p.id AND teacher_id = ?) as last_visit
+        (SELECT COUNT(*) FROM sessions WHERE student_id = p.id AND teacher_id = ?) as total_sessions,
+        (SELECT MAX(scheduled_date) FROM sessions WHERE student_id = p.id AND teacher_id = ? AND scheduled_date <= DATE('now')) as last_session,
+        (SELECT MIN(scheduled_date) FROM sessions WHERE student_id = p.id AND teacher_id = ? AND scheduled_date > DATE('now')) as next_session
       FROM students p
       JOIN users u ON p.user_id = u.id
       JOIN sessions s ON p.id = s.student_id
       WHERE s.teacher_id = ?`,
-      args: [teacher.id, teacher.id]
+      args: [teacher.id, teacher.id, teacher.id, teacher.id]
     });
 
     return NextResponse.json({
