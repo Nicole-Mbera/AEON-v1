@@ -6,7 +6,7 @@ import { teacherNav } from '@/lib/navigation';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { Calendar, Clock, Plus, Trash2, Save, X } from 'lucide-react';
+import { Calendar, Clock, Plus, Trash2, Save, X, Video, XCircle } from 'lucide-react';
 
 interface Schedule {
   id: number;
@@ -23,6 +23,7 @@ interface Booking {
   duration_minutes: number;
   status: string;
   student_name: string;
+  meeting_link?: string;
 }
 
 const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -34,7 +35,7 @@ export default function TeacherSchedulePage() {
   const [error, setError] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [isAddingSlot, setIsAddingSlot] = useState(false);
-  
+
   const [newSlot, setNewSlot] = useState({
     day_of_week: new Date().getDay(),
     start_time: '09:00',
@@ -56,9 +57,9 @@ export default function TeacherSchedulePage() {
       const response = await fetch(
         `/api/teacher/schedule?include_bookings=true&start_date=${startDate.toISOString().split('T')[0]}&end_date=${endDate.toISOString().split('T')[0]}`
       );
-      
+
       if (!response.ok) throw new Error('Failed to fetch schedules');
-      
+
       const result = await response.json();
       setSchedules(result.data.schedules || []);
       setBookings(result.data.bookings || []);
@@ -110,6 +111,34 @@ export default function TeacherSchedulePage() {
     }
   };
 
+  const handleCancelSession = async (sessionId: number) => {
+    if (!confirm('Are you sure you want to cancel this session? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/teacher/sessions', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          sessionId,
+          status: 'cancelled',
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to cancel session');
+      }
+
+      await fetchSchedules();
+    } catch (err) {
+      console.error('Cancel error:', err);
+      alert('Failed to cancel session. Please try again.');
+    }
+  };
+
   const formatTime = (time: string) => {
     const [hours, minutes] = time.split(':');
     const hour = parseInt(hours);
@@ -132,7 +161,7 @@ export default function TeacherSchedulePage() {
     const startingDayOfWeek = firstDay.getDay();
 
     const days = [];
-    
+
     // Add previous month's days
     for (let i = 0; i < startingDayOfWeek; i++) {
       const prevDate = new Date(year, month, -startingDayOfWeek + i + 1);
@@ -232,15 +261,14 @@ export default function TeacherSchedulePage() {
               return (
                 <div
                   key={index}
-                  className={`min-h-[80px] rounded-xl border p-2 transition-all ${
-                    !day.isCurrentMonth
+                  className={`min-h-[80px] rounded-xl border p-2 transition-all ${!day.isCurrentMonth
                       ? 'border-transparent bg-gray-50 text-gray-400'
                       : isToday(day.date)
-                      ? 'border-[gray-300] bg-[gray-50] ring-2 ring-[gray-300]/20'
-                      : hasAvailability
-                      ? 'border-[gray-200] bg-white hover:border-[gray-300] hover:shadow-lg cursor-pointer'
-                      : 'border-[gray-200] bg-white'
-                  }`}
+                        ? 'border-[gray-300] bg-[gray-50] ring-2 ring-[gray-300]/20'
+                        : hasAvailability
+                          ? 'border-[gray-200] bg-white hover:border-[gray-300] hover:shadow-lg cursor-pointer'
+                          : 'border-[gray-200] bg-white'
+                    }`}
                 >
                   <div className="text-right text-sm font-medium text-[black]">
                     {day.date.getDate()}
@@ -375,9 +403,9 @@ export default function TeacherSchedulePage() {
               {bookings.slice(0, 5).map((booking) => (
                 <div
                   key={booking.id}
-                  className="flex items-center gap-3 rounded-lg border border-[gray-200]/50 bg-white p-3"
+                  className="flex items-center gap-4 rounded-lg border border-[gray-200]/50 bg-white p-3"
                 >
-                  <div className="flex h-12 w-12 flex-col items-center justify-center rounded-lg bg-[gray-300]/10">
+                  <div className="flex h-12 w-12 flex-col items-center justify-center rounded-lg bg-[gray-300]/10 shrink-0">
                     <span className="text-xs text-[gray-600]">
                       {new Date(booking.scheduled_date).toLocaleDateString('en-US', { month: 'short' })}
                     </span>
@@ -385,9 +413,32 @@ export default function TeacherSchedulePage() {
                       {new Date(booking.scheduled_date).getDate()}
                     </span>
                   </div>
-                  <div className="flex-1">
-                    <div className="font-medium text-[black]">{booking.student_name}</div>
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium text-[black] truncate">{booking.student_name}</div>
                     <div className="text-sm text-[gray-600]">{formatTime(booking.scheduled_time)}</div>
+                  </div>
+                  <div className="flex gap-2 shrink-0">
+                    {booking.meeting_link && (
+                      <a href={booking.meeting_link} target="_blank" rel="noopener noreferrer">
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="border-blue-200 bg-blue-50 text-blue-600 hover:bg-blue-100 hover:text-blue-700 hover:border-blue-300"
+                          title="Join Meeting"
+                        >
+                          <Video className="h-4 w-4" />
+                        </Button>
+                      </a>
+                    )}
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="border-red-200 bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700 hover:border-red-300"
+                      onClick={() => handleCancelSession(booking.id)}
+                      title="Cancel Session"
+                    >
+                      <XCircle className="h-5 w-5" />
+                    </Button>
                   </div>
                 </div>
               ))}

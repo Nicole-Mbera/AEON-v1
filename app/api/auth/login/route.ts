@@ -53,7 +53,7 @@ export async function POST(request: Request) {
     }
 
     try {
-      await activityQueries.logActivity(
+      activityQueries.logActivity.run(
         result.user!.id,
         'login',
         JSON.stringify({ timestamp: new Date().toISOString() })
