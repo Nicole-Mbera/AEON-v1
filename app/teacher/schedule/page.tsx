@@ -34,7 +34,7 @@ export default function TeacherSchedulePage() {
   const [error, setError] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [isAddingSlot, setIsAddingSlot] = useState(false);
-  
+
   const [newSlot, setNewSlot] = useState({
     day_of_week: new Date().getDay(),
     start_time: '09:00',
@@ -56,9 +56,9 @@ export default function TeacherSchedulePage() {
       const response = await fetch(
         `/api/teacher/schedule?include_bookings=true&start_date=${startDate.toISOString().split('T')[0]}&end_date=${endDate.toISOString().split('T')[0]}`
       );
-      
+
       if (!response.ok) throw new Error('Failed to fetch schedules');
-      
+
       const result = await response.json();
       setSchedules(result.data.schedules || []);
       setBookings(result.data.bookings || []);
@@ -132,7 +132,7 @@ export default function TeacherSchedulePage() {
     const startingDayOfWeek = firstDay.getDay();
 
     const days = [];
-    
+
     // Add previous month's days
     for (let i = 0; i < startingDayOfWeek; i++) {
       const prevDate = new Date(year, month, -startingDayOfWeek + i + 1);
@@ -165,7 +165,7 @@ export default function TeacherSchedulePage() {
     const today = new Date();
     return date.toDateString() === today.toDateString();
   };
-
+  //testS
   if (loading) {
     return (
       <DashboardShell
@@ -232,15 +232,14 @@ export default function TeacherSchedulePage() {
               return (
                 <div
                   key={index}
-                  className={`min-h-[80px] rounded-xl border p-2 transition-all ${
-                    !day.isCurrentMonth
+                  className={`min-h-[80px] rounded-xl border p-2 transition-all ${!day.isCurrentMonth
                       ? 'border-transparent bg-gray-50 text-gray-400'
                       : isToday(day.date)
-                      ? 'border-[gray-300] bg-[gray-50] ring-2 ring-[gray-300]/20'
-                      : hasAvailability
-                      ? 'border-[gray-200] bg-white hover:border-[gray-300] hover:shadow-lg cursor-pointer'
-                      : 'border-[gray-200] bg-white'
-                  }`}
+                        ? 'border-[gray-300] bg-[gray-50] ring-2 ring-[gray-300]/20'
+                        : hasAvailability
+                          ? 'border-[gray-200] bg-white hover:border-[gray-300] hover:shadow-lg cursor-pointer'
+                          : 'border-[gray-200] bg-white'
+                    }`}
                 >
                   <div className="text-right text-sm font-medium text-[black]">
                     {day.date.getDate()}
