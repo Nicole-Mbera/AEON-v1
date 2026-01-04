@@ -117,7 +117,7 @@ export async function GET(request: Request) {
         WHERE c.teacher_id = ?
           AND c.status IN ('scheduled', 'confirmed')
           AND date(c.scheduled_date) > date('now')
-          AND date(c.scheduled_date) <= date('now', '+7 days')
+          
         ORDER BY c.scheduled_date ASC, c.scheduled_time ASC
         LIMIT 10`,
       args: [professional.id]
