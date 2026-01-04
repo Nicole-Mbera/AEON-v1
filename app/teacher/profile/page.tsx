@@ -70,13 +70,13 @@ export default function DoctorProfilePage() {
 
       if (response.ok) {
         const data = await response.json();
-        setProfile(data.profile);
+        setProfile(data.data);
         setFormData({
-          full_name: data.profile.full_name || '',
-          bio: data.profile.bio || '',
-          specialization: data.profile.specialization || '',
-          years_of_experience: data.profile.years_of_experience || 0,
-          phone: data.profile.phone || '',
+          full_name: data.data.full_name || '',
+          bio: data.data.bio || '',
+          specialization: data.data.specialization || '',
+          years_of_experience: data.data.years_of_experience || 0,
+          phone: data.data.phone || '',
         });
       } else if (response.status === 401) {
         router.push('/login?redirect=/doctor/profile');
