@@ -563,7 +563,7 @@ export async function sendPasswordResetEmail(email: string, token: string) {
     console.log('   Link:', `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/reset-password?token=${token}`);
     return { success: true, message: 'SendGrid not configured (development mode)' };
   }
-
+  //we have updated the reset link
   const resetLink = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/reset-password?token=${token}`;
   const from = getDefaultFrom();
 
