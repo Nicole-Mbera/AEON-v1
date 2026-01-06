@@ -641,13 +641,14 @@ export async function sendTeacherApprovalEmail(data: {
   to: string;
   teacherName: string;
 }) {
+  const subscriptionLink = 'https://aeon-v1.vercel.app/subscription/teacher';
   if (!initializeSendGrid()) {
     console.warn('SendGrid not configured, skipping email');
     return { success: false, error: 'Email service not configured' };
   }
 
   const from = getDefaultFrom();
-  const subscriptionLink = 'https://aeon-v1.vercel.app/teacher/subscription';
+
 
   const htmlContent = `
     <!DOCTYPE html>
