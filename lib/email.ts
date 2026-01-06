@@ -647,7 +647,7 @@ export async function sendTeacherApprovalEmail(data: {
   }
 
   const from = getDefaultFrom();
-  const subscriptionLink = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/subscription/teacher`;
+  const subscriptionLink = 'https://aeon-v1.vercel.app/teacher/subscription';
 
   const htmlContent = `
     <!DOCTYPE html>
