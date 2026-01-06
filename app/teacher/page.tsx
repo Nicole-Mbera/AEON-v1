@@ -211,8 +211,8 @@ export default function TeacherDashboardPage() {
                     <div className="flex items-center gap-2">
                       <h3 className="font-medium text-[black]">{session.student_name}</h3>
                       <span className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${session.status === 'confirmed' ? 'bg-green-100 text-green-700' :
-                          session.status === 'scheduled' ? 'bg-blue-100 text-blue-700' :
-                            'bg-gray-100 text-gray-700'
+                        session.status === 'scheduled' ? 'bg-blue-100 text-blue-700' :
+                          'bg-gray-100 text-gray-700'
                         }`}>
                         {session.status}
                       </span>
@@ -273,20 +273,36 @@ export default function TeacherDashboardPage() {
                     </span>
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="flex justify-between items-start">
+                    <div className="flex justify-between items-center">
                       <div>
                         <h4 className="font-medium text-[black] truncate">{session.student_name}</h4>
                         <p className="text-sm text-[gray-600]">
                           {formatTime(session.scheduled_time)}
                         </p>
                       </div>
-                      <button
-                        onClick={() => handleCancelSession(session.id)}
-                        className="text-gray-400 hover:text-red-600 transition-colors p-1"
-                        title="Cancel Session"
-                      >
-                        <XCircle className="h-5 w-5" />
-                      </button>
+                      <div className="flex gap-2 shrink-0 ml-4">
+                        {session.meeting_link && (
+                          <a href={session.meeting_link} target="_blank" rel="noopener noreferrer">
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              className="border-blue-200 bg-blue-50 text-blue-600 hover:bg-blue-100 hover:text-blue-700 hover:border-blue-300"
+                              title="Join Meeting"
+                            >
+                              <Video className="h-4 w-4" />
+                            </Button>
+                          </a>
+                        )}
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="border-red-200 bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700 hover:border-red-300"
+                          onClick={() => handleCancelSession(session.id)}
+                          title="Cancel Session"
+                        >
+                          <XCircle className="h-5 w-5" />
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 </div>
