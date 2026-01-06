@@ -115,12 +115,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         'student': '/student',
       };
 
-      const redirectPath = redirectMap[data.user.role as keyof typeof redirectMap] || '/';
+      // Check for redirect param in URL
+      const searchParams = new URLSearchParams(window.location.search);
+      const redirectParam = searchParams.get('redirect');
+
+      const redirectPath = redirectParam || redirectMap[data.user.role as keyof typeof redirectMap] || '/';
       console.log('Redirecting to:', redirectPath);
-      
+
       // Use window.location for a hard redirect to ensure middleware runs
       window.location.href = redirectPath;
-      
+
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'An error occurred during login';
       setError(errorMessage);
@@ -140,13 +144,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch (error) {
       console.error('Logout API error:', error);
     }
-    
+
     // Clear client-side storage
     localStorage.removeItem('token');
     document.cookie = 'token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT; SameSite=Lax';
     setUser(null);
     setToken(null);
-    
+
     // Hard redirect to login page to ensure clean state
     window.location.href = '/login';
   };

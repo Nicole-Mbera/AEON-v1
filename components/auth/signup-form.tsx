@@ -244,8 +244,8 @@ export function SignupForm() {
         document.cookie = `token=${data.token}; path=/; max-age=604800; SameSite=Lax`;
 
         const redirectMap = {
-          'student': '/subscription',
-          'teacher': '/teacher',
+          'student': '/subscription', // TODO: Check if this is correct, user mentioned subscription
+          'teacher': '/teacher/pending',
         };
 
         window.location.href = redirectMap[selectedRole];
