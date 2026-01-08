@@ -6,15 +6,15 @@ import { CoreFeaturesSection } from "@/components/sections/core-features";
 
 
 export default function Home() {
-  return (
-    <div className="min-h-screen bg-white">
-      <Navbar />
-      <main className="mx-auto flex w-full max-w-6xl flex-col gap-16 px-4 pb-20 pt-10 sm:px-6 lg:px-8">
-        <HeroSection />
-        <WhyBodyWiseSection />
-        <CoreFeaturesSection />
-      </main>
-      <Footer />
-    </div>
-  );
+    return (
+        <div className="min-h-screen bg-white">
+            <Navbar />
+            <main className="mx-auto flex w-full max-w-6xl flex-col gap-16 px-4 pb-20 pt-10 sm:px-6 lg:px-8">
+                <HeroSection />
+                <WhyBodyWiseSection />
+                <CoreFeaturesSection />
+            </main>
+            <Footer />
+        </div>
+    );
 }

@@ -80,7 +80,7 @@ export const NAV_LINKS = [
   { label: "Features", href: "#features" },
   { label: "About", href: "#why" },
   { label: "Library", href: "/resourceHub" },
-  { label: "Teachers", href: "#teachers" },
+  { label: "Teachers", href: "/teachers" },
   { label: "Login", href: "/login" },
 ] as const;
 

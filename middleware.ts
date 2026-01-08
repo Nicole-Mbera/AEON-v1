@@ -14,7 +14,7 @@ const protectedRoutes = {
 const authRequiredRoutes = ['/admin', '/teacher', '/student', '/subscription'];
 
 // routes with no authentication
-const publicRoutes = ['/', '/login', '/signup', '/forgot-password', '/education', '/testimonials', '/api-docs', '/api', '/donate'];
+const publicRoutes = ['/', '/login', '/signup', '/forgot-password', '/education', '/testimonials', '/api-docs', '/api', '/donate', '/teachers'];
 
 // Enforce JWT_SECRET in production
 if (process.env.NODE_ENV === 'production' && !process.env.JWT_SECRET) {
