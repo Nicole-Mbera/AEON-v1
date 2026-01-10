@@ -61,7 +61,7 @@ export function DashboardShell({
 
   return (
     <div className="min-h-screen bg-white">
-      <div className="mx-auto flex min-h-screen w-full gap-6 px-4 py-10 sm:px-6 lg:px-8">
+      <div className="mx-auto flex min-h-screen w-full gap-6 px-2 py-4 sm:px-6 sm:py-10 lg:px-8">
         {navItems && navItems.length ? (
           <aside className="hidden w-full max-w-[240px] rounded-3xl border border-black/20 bg-white/80 p-6 shadow-[0_30px_90px_-65px_rgba(0,0,0,0.2)] lg:block">
             <div className="mb-6">
@@ -116,8 +116,8 @@ export function DashboardShell({
             </div>
           </aside>
         ) : null}
-        <div className="flex-1">
-          <header className="mb-8 flex flex-col gap-6 rounded-3xl bg-gradient-to-r from-white via-white to-white px-5 py-6 shadow-[0_35px_80px_-60px_rgba(0,0,0,0.2)] sm:gap-4 sm:px-8 sm:py-8">
+        <div className="flex-1 min-w-0">
+          <header className="mb-6 flex flex-col gap-6 rounded-2xl bg-white px-4 py-5 shadow-[0_35px_80px_-60px_rgba(0,0,0,0.2)] sm:mb-8 sm:gap-4 sm:rounded-3xl sm:px-8 sm:py-8">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div className="space-y-3">
                 {breadcrumbs && breadcrumbs.length ? (

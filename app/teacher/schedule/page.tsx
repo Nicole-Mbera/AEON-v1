@@ -228,7 +228,7 @@ export default function TeacherSchedulePage() {
     >
       <div className="grid gap-8 lg:grid-cols-[1.3fr_1fr]">
         {/* Calendar View */}
-        <div className="rounded-3xl border border-[gray-200] bg-white p-6 shadow-[0_30px_80px_-60px_rgba(0,0,0,0.15)]">
+        <div className="min-w-0 rounded-3xl border border-[gray-200] bg-white p-4 shadow-[0_30px_80px_-60px_rgba(0,0,0,0.15)] sm:p-6">
           <div className="mb-6 flex items-center justify-between">
             <h2 className="text-xl font-semibold text-[black]">
               {selectedDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
@@ -244,64 +244,66 @@ export default function TeacherSchedulePage() {
           </div>
 
           {/* Calendar Grid */}
-          <div className="grid grid-cols-7 gap-2">
-            {/* Day Headers */}
-            {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
-              <div key={day} className="p-2 text-center text-sm font-medium text-[gray-600]">
-                {day}
-              </div>
-            ))}
-
-            {/* Calendar Days */}
-            {getDaysInMonth(selectedDate).map((day, index) => {
-              const dayBookings = getBookingsForDate(day.date);
-              const dayOfWeek = day.date.getDay();
-              const hasAvailability = schedules.some(s => s.day_of_week === dayOfWeek && s.is_available);
-
-              return (
-                <div
-                  key={index}
-                  className={`min-h-[80px] rounded-xl border p-2 transition-all ${!day.isCurrentMonth
-                    ? 'border-transparent bg-gray-50 text-gray-400'
-                    : isToday(day.date)
-                      ? 'border-[gray-300] bg-[gray-50] ring-2 ring-[gray-300]/20'
-                      : hasAvailability
-                        ? 'border-[gray-200] bg-white hover:border-[gray-300] hover:shadow-lg cursor-pointer'
-                        : 'border-[gray-200] bg-white'
-                    }`}
-                >
-                  <div className="text-right text-sm font-medium text-[black]">
-                    {day.date.getDate()}
-                  </div>
-                  {day.isCurrentMonth && dayBookings.length > 0 && (
-                    <div className="mt-1 space-y-1">
-                      {dayBookings.slice(0, 2).map((booking) => (
-                        <div
-                          key={booking.id}
-                          className="truncate rounded bg-[gray-300]/20 px-1 text-xs text-[gray-600]"
-                          title={`${booking.student_name} - ${booking.scheduled_time}`}
-                        >
-                          {booking.scheduled_time.substring(0, 5)}
-                        </div>
-                      ))}
-                      {dayBookings.length > 2 && (
-                        <div className="text-xs text-[gray-600]">+{dayBookings.length - 2} more</div>
-                      )}
-                    </div>
-                  )}
-                  {day.isCurrentMonth && hasAvailability && dayBookings.length === 0 && (
-                    <div className="mt-1 text-xs text-[gray-300]">Available</div>
-                  )}
+          <div className="overflow-x-auto pb-2">
+            <div className="grid grid-cols-7 gap-2 min-w-[600px]">
+              {/* Day Headers */}
+              {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
+                <div key={day} className="p-2 text-center text-sm font-medium text-[gray-600]">
+                  {day}
                 </div>
-              );
-            })}
+              ))}
+
+              {/* Calendar Days */}
+              {getDaysInMonth(selectedDate).map((day, index) => {
+                const dayBookings = getBookingsForDate(day.date);
+                const dayOfWeek = day.date.getDay();
+                const hasAvailability = schedules.some(s => s.day_of_week === dayOfWeek && s.is_available);
+
+                return (
+                  <div
+                    key={index}
+                    className={`min-h-[80px] rounded-xl border p-2 transition-all ${!day.isCurrentMonth
+                      ? 'border-transparent bg-gray-50 text-gray-400'
+                      : isToday(day.date)
+                        ? 'border-[gray-300] bg-[gray-50] ring-2 ring-[gray-300]/20'
+                        : hasAvailability
+                          ? 'border-[gray-200] bg-white hover:border-[gray-300] hover:shadow-lg cursor-pointer'
+                          : 'border-[gray-200] bg-white'
+                      }`}
+                  >
+                    <div className="text-right text-sm font-medium text-[black]">
+                      {day.date.getDate()}
+                    </div>
+                    {day.isCurrentMonth && dayBookings.length > 0 && (
+                      <div className="mt-1 space-y-1">
+                        {dayBookings.slice(0, 2).map((booking) => (
+                          <div
+                            key={booking.id}
+                            className="truncate rounded bg-[gray-300]/20 px-1 text-xs text-[gray-600]"
+                            title={`${booking.student_name} - ${booking.scheduled_time}`}
+                          >
+                            {booking.scheduled_time.substring(0, 5)}
+                          </div>
+                        ))}
+                        {dayBookings.length > 2 && (
+                          <div className="text-xs text-[gray-600]">+{dayBookings.length - 2} more</div>
+                        )}
+                      </div>
+                    )}
+                    {day.isCurrentMonth && hasAvailability && dayBookings.length === 0 && (
+                      <div className="mt-1 text-xs text-[gray-300]">Available</div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </div>
 
         {/* Weekly Availability Settings */}
         <div className="space-y-6">
           {/* Add New Slot */}
-          <div className="rounded-3xl border border-[gray-200] bg-white p-6 shadow-[0_30px_80px_-60px_rgba(0,0,0,0.15)]">
+          <div className="min-w-0 rounded-3xl border border-[gray-200] bg-white p-4 shadow-[0_30px_80px_-60px_rgba(0,0,0,0.15)] sm:p-6">
             <div className="mb-4 flex items-center justify-between">
               <h2 className="text-lg font-semibold text-[black]">Weekly Availability</h2>
               <Button
@@ -397,7 +399,7 @@ export default function TeacherSchedulePage() {
           </div>
 
           {/* Upcoming Bookings */}
-          <div className="rounded-3xl border border-[gray-200] bg-white p-6 shadow-[0_30px_80px_-60px_rgba(0,0,0,0.15)]">
+          <div className="min-w-0 rounded-3xl border border-[gray-200] bg-white p-4 shadow-[0_30px_80px_-60px_rgba(0,0,0,0.15)] sm:p-6">
             <h3 className="mb-4 font-semibold text-[black]">Upcoming Bookings</h3>
             <div className="space-y-2">
               {bookings.slice(0, 5).map((booking) => (
