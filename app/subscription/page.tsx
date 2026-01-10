@@ -4,7 +4,7 @@ import { AuthShell } from "@/components/layout/auth-shell";
 import { PaymentForm } from "@/components/subscription/payment-form";
 
 export const metadata = {
-    title: "Monthly Subscription | AEON Education",
+    title: "Monthly Subscription | AEON.Academy",
 };
 
 export default function SubscriptionPage() {

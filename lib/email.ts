@@ -18,7 +18,7 @@ function initializeSendGrid() {
 function getDefaultFrom() {
   return {
     email: process.env.SENDGRID_FROM_EMAIL || 'noreply@aeon.com',
-    name: process.env.SENDGRID_FROM_NAME || 'AEON Education',
+    name: process.env.SENDGRID_FROM_NAME || 'AEON.Academy',
   };
 }
 
@@ -266,7 +266,7 @@ export const emailTemplates = {
             </center>
             
             <p style="color: #666; font-size: 13px; margin-top: 30px;">
-              This invitation was sent by ${data.senderName} through AEON Education.
+              This invitation was sent by ${data.senderName} through AEON.Academy.
             </p>
           </div>
           <div class="footer">
@@ -506,7 +506,7 @@ export async function sendInstitutionRejectionEmail(data: {
         <div class="content">
           <p>Dear ${data.adminName},</p>
           
-          <p>Thank you for your interest in partnering with AEON Education and your commitment to supporting youth education.</p>
+          <p>Thank you for your interest in partnering with AEON.Academy and your commitment to supporting youth education.</p>
           
           <p>After careful review, we regret to inform you that we are unable to approve <strong>${data.institutionName}</strong>'s partnership application at this time.</p>
           
@@ -587,7 +587,7 @@ export async function sendPasswordResetEmail(email: string, token: string) {
         </div>
         <div class="content">
           <p>Hello,</p>
-          <p>We received a request to reset your password for your AEON Education account.</p>
+          <p>We received a request to reset your password for your AEON.Academy account.</p>
           <p>Click the button below to set a new password:</p>
           
           <center>
@@ -674,7 +674,7 @@ export async function sendTeacherApprovalEmail(data: {
           
           <div class="success-badge">Application Approved</div>
           
-          <p>Congratulations! Your application to join AEON Education as a teacher has been approved.</p>
+          <p>Congratulations! Your application to join AEON.Academy as a teacher has been approved.</p>
           
           <p>To active your account and start teaching, please complete your subscription setup.</p>
           
@@ -751,7 +751,7 @@ export async function sendTeacherRejectionEmail(data: {
         <div class="content">
           <p>Dear ${data.teacherName},</p>
           
-          <p>Thank you for your interest in joining AEON Education as a teacher.</p>
+          <p>Thank you for your interest in joining AEON.Academy as a teacher.</p>
           
           <p>After reviewing your application, we regret to inform you that we are unable to move forward with your registration at this time.</p>
           

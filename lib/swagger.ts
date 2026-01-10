@@ -6,7 +6,7 @@ export const swaggerDefinition = {
   info: {
     title: 'AEON API',
     version: '1.0.0',
-    description: 'AEON Education Platform API',
+    description: 'AEON.Academy Platform API',
   },
   servers: [
     {

@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { NAV_LINKS } from "@/lib/constants";
 import { buttonVariants } from "@/components/ui/button";
@@ -10,10 +11,15 @@ export function Navbar() {
           href="/"
           className="flex items-center gap-3 text-base font-semibold tracking-tight"
         >
-          <span className="flex h-12 w-12 items-center justify-center rounded-full bg-black text-sm font-bold uppercase text-white">
-            AEON
-          </span>
-          AEON Education
+          <div className="relative h-17 w-18 overflow-hidden rounded-full">
+            <Image
+              src="/uploads/logo.jpeg"
+              alt="AEON Logo"
+              fill
+              className="object-cover"
+            />
+          </div>
+          AEON.Academy
         </Link>
         <div className="flex items-center gap-3 lg:hidden">
           <Link href="/donate" className="text-sm font-semibold text-black/70">

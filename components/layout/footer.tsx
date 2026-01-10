@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { SOCIAL_LINKS } from "@/lib/constants";
 import {
   RiTwitterXLine,
@@ -22,8 +23,7 @@ const columns = [
     links: [
       { name: "Sign In", href: "/login" },
       { name: "Sign Up", href: "/signup" },
-      { name: "Find Teachers", href: "/student/doctors" },
-      { name: "API Documentation", href: "/api-docs" },
+      { name: "Teachers", href: "/teachers" },
     ],
   },
 ];
@@ -41,10 +41,15 @@ export function Footer() {
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-12 px-6 py-16 md:flex-row md:items-start md:justify-between">
         <div className="space-y-6 max-w-xs">
           <div className="flex items-center gap-3 text-lg font-semibold">
-            <span className="flex h-12 w-12 items-center justify-center rounded-full bg-white/20 text-sm font-bold uppercase text-white">
-              AEON
-            </span>
-           AEON Education
+            <div className="relative h-30 w-30 overflow-hidden rounded-full">
+              <Image
+                src="/uploads/logo.jpeg"
+                alt="AEON Logo"
+                fill
+                className="object-cover"
+              />
+            </div>
+            AEON.Academy
           </div>
           <div className="flex items-center gap-4 text-sm text-white/80">
             {SOCIAL_LINKS.map((link) => {

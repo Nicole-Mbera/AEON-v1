@@ -19,7 +19,7 @@ async function seed() {
 
     // ============== USERS ==============
     console.log('Creating users...');
-    
+
     // Admin user
     const adminUser = db.prepare(`
       INSERT INTO users (email, password_hash, role, is_verified, is_active)
@@ -42,7 +42,7 @@ async function seed() {
 
     // ============== ADMINS ==============
     console.log('Creating admins...');
-    
+
     db.prepare(`
       INSERT INTO admins (user_id, full_name, phone)
       VALUES (?, ?, ?)
@@ -52,7 +52,7 @@ async function seed() {
 
     // ============== TEACHERS ==============
     console.log('Creating teachers...');
-    
+
     const teacherId = db.prepare(`
       INSERT INTO teachers (user_id, full_name, bio, specialization, years_of_experience, phone)
       VALUES (?, ?, ?, ?, ?, ?)
@@ -69,7 +69,7 @@ async function seed() {
 
     // ============== STUDENTS ==============
     console.log('Creating students...');
-    
+
     const studentId = db.prepare(`
       INSERT INTO students (user_id, username, full_name, date_of_birth, grade_level, phone)
       VALUES (?, ?, ?, ?, ?, ?)
@@ -86,7 +86,7 @@ async function seed() {
 
     // ============== AVAILABILITY SCHEDULES ==============
     console.log('Creating teacher availability...');
-    
+
     const availabilityInsert = db.prepare(`
       INSERT INTO availability_schedules (teacher_id, day_of_week, start_time, end_time)
       VALUES (?, ?, ?, ?)
@@ -102,7 +102,7 @@ async function seed() {
 
     // ============== SESSIONS ==============
     console.log('Creating sample sessions...');
-    
+
     const now = new Date();
     const tomorrow = new Date(now);
     tomorrow.setDate(tomorrow.getDate() + 1);
@@ -139,7 +139,7 @@ async function seed() {
 
     // ============== TESTIMONIALS ==============
     console.log('Creating testimonials...');
-    
+
     db.prepare(`
       INSERT INTO testimonials (user_id, user_type, content, rating, is_featured, is_approved)
       VALUES (?, ?, ?, ?, ?, ?)
@@ -168,7 +168,7 @@ async function seed() {
 
     // ============== ARTICLES ==============
     console.log('Creating blog articles...');
-    
+
     db.prepare(`
       INSERT INTO articles (title, content, author_type, author_id, is_published)
       VALUES (?, ?, ?, ?, ?)
@@ -184,7 +184,7 @@ async function seed() {
       INSERT INTO articles (title, content, author_type, author_id, is_published)
       VALUES (?, ?, ?, ?, ?)
     `).run(
-      'Welcome to AEON Education Platform',
+      'Welcome to AEON.Academy Platform',
       'We are excited to introduce AEON, your personalized learning companion. Our platform connects students with experienced teachers...',
       'admin',
       adminUser.lastInsertRowid,
@@ -195,7 +195,7 @@ async function seed() {
 
     // ============== ACTIVITY LOGS ==============
     console.log('Creating activity logs...');
-    
+
     const activities = [
       { userId: adminUser.lastInsertRowid, type: 'login', details: { timestamp: new Date().toISOString() } },
       { userId: teacherUser.lastInsertRowid, type: 'login', details: { timestamp: new Date().toISOString() } },

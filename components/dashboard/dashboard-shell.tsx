@@ -1,6 +1,7 @@
 "use client";
 
 import { ReactNode } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
@@ -68,10 +69,15 @@ export function DashboardShell({
                 href="/"
                 className="flex items-center gap-3 text-sm font-semibold text-black"
               >
-                <span className="flex h-12 w-12 items-center justify-center rounded-full bg-black text-xs font-bold uppercase text-white">
-                  AEON
-                </span>
-                Education
+                <div className="relative h-12 w-12 overflow-hidden rounded-full">
+                  <Image
+                    src="/uploads/logo.jpeg"
+                    alt="AEON Logo"
+                    fill
+                    className="object-cover"
+                  />
+                </div>
+                AEON.Academy
               </Link>
             </div>
             <nav className="space-y-1">
@@ -82,7 +88,7 @@ export function DashboardShell({
                   matchType === "exact"
                     ? pathname === item.href
                     : pathname === item.href ||
-                      (item.href !== "/" && pathname.startsWith(`${item.href}/`));
+                    (item.href !== "/" && pathname.startsWith(`${item.href}/`));
                 return (
                   <Link
                     key={item.href}
@@ -101,7 +107,7 @@ export function DashboardShell({
               })}
             </nav>
             <div className="mt-10 pt-4 border-t border-black/10">
-              <button 
+              <button
                 onClick={logout}
                 className="flex w-full items-center justify-center rounded-full bg-black px-4 py-3 text-sm font-semibold text-white transition hover:bg-black/80"
               >
@@ -157,7 +163,7 @@ export function DashboardShell({
                     matchType === "exact"
                       ? pathname === item.href
                       : pathname === item.href ||
-                        (item.href !== "/" && pathname.startsWith(`${item.href}/`));
+                      (item.href !== "/" && pathname.startsWith(`${item.href}/`));
                   return (
                     <Link
                       key={item.href}
@@ -174,7 +180,7 @@ export function DashboardShell({
                     </Link>
                   );
                 })}
-                <button 
+                <button
                   onClick={logout}
                   className="flex min-w-max items-center gap-2 rounded-full bg-black px-4 py-2 text-xs font-semibold text-white transition hover:bg-black/80"
                 >

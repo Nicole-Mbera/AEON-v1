@@ -3,7 +3,7 @@ import { AuthShell } from "@/components/layout/auth-shell";
 import { LoginForm } from "@/components/auth/login-form";
 
 export const metadata = {
-  title: "Login | AEON Education",
+  title: "Login | AEON.Academy",
 };
 
 export default function LoginPage() {

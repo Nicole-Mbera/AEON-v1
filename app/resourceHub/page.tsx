@@ -1,8 +1,9 @@
 'use client';
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import {
     BookOpen, Newspaper, Globe, PlayCircle,
-    CheckCircle, Clock, Award, Users
+    CheckCircle, Clock, Award, Users, ArrowLeft
 } from 'lucide-react';
 import { BooksSection } from "@/components/resourceHub/booksSection"
 import { ArticlesSection } from "@/components/resourceHub/articlesSection"
@@ -19,6 +20,7 @@ const tabs = [
 ];
 
 export default function ResourceHub() {
+    const router = useRouter();
     const [activeTab, setActiveTab] = useState('videos');
     const [searchQuery, setSearchQuery] = useState('');
     const [activeLevel, setActiveLevel] = useState('All');
@@ -28,6 +30,13 @@ export default function ResourceHub() {
     return (
         <div className="min-h-screen bg-white">
             <div className="container mx-auto px-4 py-8">
+                <button
+                    onClick={() => router.back()}
+                    className="mb-6 flex items-center gap-2 text-sm font-medium text-gray-500 hover:text-black transition-colors"
+                >
+                    <ArrowLeft className="h-4 w-4" />
+                    Back
+                </button>
 
                 {/* Top Controls: Search & Filter */}
                 <div className="flex flex-col md:flex-row gap-4 mb-8 justify-between items-center">
@@ -52,8 +61,8 @@ export default function ResourceHub() {
                                 key={level}
                                 onClick={() => setActiveLevel(level)}
                                 className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${activeLevel === level
-                                        ? 'bg-white text-black shadow-sm'
-                                        : 'text-gray-500 hover:text-gray-900'
+                                    ? 'bg-white text-black shadow-sm'
+                                    : 'text-gray-500 hover:text-gray-900'
                                     }`}
                             >
                                 {level}

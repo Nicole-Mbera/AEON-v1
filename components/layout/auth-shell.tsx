@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { ReactNode } from "react";
 
 interface AuthShellProps {
@@ -35,17 +36,22 @@ export function AuthShell({
                   href="/"
                   className="inline-flex w-max items-center gap-3 rounded-full bg-white/15 px-4 py-2 text-sm font-semibold tracking-wide text-white/80 transition hover:bg-white/25"
                 >
-                  <span className="flex h-9 w-9 items-center justify-center rounded-full bg-white/20 text-xs font-bold uppercase text-white">
-                    AE
-                  </span>
-                  AEON Education
+                  <div className="relative h-15 w-15 overflow-hidden rounded-full">
+                    <Image
+                      src="/uploads/logo.jpeg"
+                      alt="AEON Logo"
+                      fill
+                      className="object-cover"
+                    />
+                  </div>
+                  AEON.Academy
                 </Link>
                 <div className="space-y-4">
                   <h2 className="text-3xl font-semibold leading-tight tracking-tight text-white sm:text-4xl">
                     Revolutionizing education accessibility for learners worldwide.
                   </h2>
                   <p className="text-sm text-white/75 sm:text-base">
-                    Connect with expert teachers, access personalized learning paths, and 
+                    Connect with expert teachers, access personalized learning paths, and
                     join a global community dedicated to boundary-free education.
                   </p>
                 </div>

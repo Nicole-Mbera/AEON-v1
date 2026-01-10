@@ -4,7 +4,7 @@ import { AuthShell } from "@/components/layout/auth-shell";
 import { DonateForm } from "@/components/donate/donate-form"; // Add this import
 
 export const metadata = {
-  title: "Support Women's Education | AEON Education",
+  title: "Support Women's Education | AEON.Academy",
 };
 
 export default function DonatePage() {

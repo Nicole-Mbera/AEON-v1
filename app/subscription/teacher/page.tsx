@@ -4,14 +4,14 @@ import { AuthShell } from "@/components/layout/auth-shell";
 import { PaymentForm } from "@/components/subscription/payment-form";
 
 export const metadata = {
-    title: "Teacher Subscription | AEON Education",
+    title: "Teacher Subscription | AEON.Academy",
 };
 
 export default function TeacherSubscriptionPage() {
     return (
         <AuthShell
             title="Activate Your Teacher Account"
-            subtitle="Subscribe to start teaching and earning on AEON Education."
+            subtitle="Subscribe to start teaching and earning on AEON.Academy."
             description="Join our faculty of expert educators."
             footer={
                 <p>

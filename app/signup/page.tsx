@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { SignupForm } from "@/components/auth/signup-form";
 
 export const metadata = {
-  title: "Create Account | AEON Education",
+  title: "Create Account | AEON.Academy",
 };
 
 export default function SignupPage() {
@@ -24,7 +24,7 @@ export default function SignupPage() {
         </p>
       }
     >
-   <SignupForm/>
+      <SignupForm />
     </AuthShell>
   );
 }

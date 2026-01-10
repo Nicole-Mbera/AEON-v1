@@ -18,7 +18,7 @@ export default function TeacherPendingPage() {
 
                     <div className="mt-4 text-sm text-gray-600 space-y-4">
                         <p>
-                            Thank you for registering as a teacher on AEON Education.
+                            Thank you for registering as a teacher on AEON.Academy.
                         </p>
                         <p>
                             Your account is currently under review by our administration team. We are verifying your credentials to ensure the highest quality of education for our students.

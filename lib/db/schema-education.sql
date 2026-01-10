@@ -1,4 +1,4 @@
--- AEON Education Platform Database Schema for SQLite
+-- AEON.Academy Platform Database Schema for SQLite
 
 -- Users table (base table for all user types)
 CREATE TABLE IF NOT EXISTS users (

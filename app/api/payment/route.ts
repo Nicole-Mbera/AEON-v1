@@ -42,7 +42,7 @@ export async function POST(request: Request) {
         donor_name: name,
         purpose: "education_donation",
         email: email,
-        platform: "AEON Education",
+        platform: "AEON.Academy",
       },
       // Optional: add automatic_payment_methods for better UX
       automatic_payment_methods: {
