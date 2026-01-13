@@ -145,6 +145,28 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Check subscription status
+    const userRes = await db.execute({
+      sql: 'SELECT subscription_status, subscription_end_date FROM users WHERE id = ?',
+      args: [currentUser.userId]
+    });
+    const user = userRes.rows[0] as unknown as { subscription_status: string; subscription_end_date: string } | undefined;
+
+    const isActive = user?.subscription_status === 'active';
+    const hasNotExpired = user?.subscription_end_date ? new Date(user.subscription_end_date) > new Date() : false;
+
+    // Allow booking if subscription is active AND not expired
+    // Note: We'll allow a grace period or check strictly? Sticking to strict for now.
+    // If subscription_status is explicitly 'active', we trust it, but checking date is safer.
+
+    // For now, if they have NO subscription data, we block them.
+    if (!isActive || !hasNotExpired) {
+      return NextResponse.json(
+        { error: 'Active subscription required. Please subscribe to book sessions.' },
+        { status: 403 }
+      );
+    }
+
     // Get teacher info
     const teacherRes = await db.execute({
       sql: `

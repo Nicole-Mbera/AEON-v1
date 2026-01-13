@@ -22,6 +22,8 @@ export async function GET(
             t.average_rating,
             t.total_reviews,
             t.institution_name,
+            t.consultation_fee,
+            t.monthly_fee,
             COALESCE(t.contact_email, u.email) as contact_email
         FROM teachers t
         JOIN users u ON t.user_id = u.id

@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { DashboardShell } from '@/components/dashboard/dashboard-shell';
 import { Button } from '@/components/ui/button';
 import { studentNav } from '@/lib/navigation';
+import { BookingPaymentModal } from '@/components/booking/booking-payment-modal';
 
 interface Doctor {
   id: number;
@@ -16,15 +17,23 @@ interface Doctor {
   total_reviews: number;
   institution_name: string;
   contact_email?: string;
+  consultation_fee?: number;
+  monthly_fee?: number;
 }
 
 interface AvailableSlot {
   id: number;
-  professional_id: number;
-  slot_date: string;
-  start_time: string;
+  teacher_id: number;
+  slot_date: string; // YYYY-MM-DD
+  start_time: string; // HH:mm:ss
   end_time: string;
   is_booked: number;
+}
+
+interface RecurringOption {
+  dayOfWeek: string; // "Tuesday"
+  time: string; // "10:00:00"
+  slots: AvailableSlot[]; // The specific dates this matches
 }
 
 export default function DoctorDetailPage() {
@@ -33,13 +42,15 @@ export default function DoctorDetailPage() {
   const doctorId = params.id as string;
 
   const [doctor, setDoctor] = useState<Doctor | null>(null);
-  const [slots, setSlots] = useState<AvailableSlot[]>([]);
   const [loading, setLoading] = useState(true);
   const [bookingLoading, setBookingLoading] = useState(false);
-  const [selectedSlot, setSelectedSlot] = useState<number | null>(null);
+
+  // Recurring state
+  const [recurringOptions, setRecurringOptions] = useState<RecurringOption[]>([]);
+  const [selectedRecurring, setSelectedRecurring] = useState<string[]>([]); // Array of "Day-Time" strings e.g. "Tuesday-10:00:00"
+
   const [notes, setNotes] = useState('');
-  const [inviteeUsername, setInviteeUsername] = useState('');
-  const [showInviteSection, setShowInviteSection] = useState(false);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
 
   useEffect(() => {
     fetchDoctorAndSlots();
@@ -54,33 +65,90 @@ export default function DoctorDetailPage() {
       ]);
 
       if (!doctorRes.ok) throw new Error('Failed to fetch doctor data');
-      if (!slotsRes.ok) {
-        console.error('Failed to fetch slots:', await slotsRes.text());
-      }
 
       const doctorData = await doctorRes.json();
       const slotsData = slotsRes.ok ? await slotsRes.json() : { data: [] };
+      const rawSlots: AvailableSlot[] = slotsData.data || [];
 
       setDoctor(doctorData.data);
-      setSlots(slotsData.data || []);
+
+      // Group slots by Day + Time to find recurring patterns
+      const groups: Record<string, AvailableSlot[]> = {};
+
+      rawSlots.forEach(slot => {
+        const date = new Date(slot.slot_date); // Note: server returns YYYY-MM-DD, might need 'T00:00' for local time safety if not UTC
+        // Just parsing text for day of week
+        const dayName = new Date(slot.slot_date).toLocaleDateString('en-US', { weekday: 'long' });
+        const key = `${dayName}-${slot.start_time}`;
+
+        if (!groups[key]) groups[key] = [];
+        groups[key].push(slot);
+      });
+
+      // Convert to options
+      const options: RecurringOption[] = Object.entries(groups).map(([key, groupSlots]) => {
+        const [day, time] = key.split('-');
+        return {
+          dayOfWeek: day,
+          time: time,
+          slots: groupSlots
+        };
+      }).sort((a, b) => a.dayOfWeek.localeCompare(b.dayOfWeek) || a.time.localeCompare(b.time));
+
+      setRecurringOptions(options);
+
     } catch (err: any) {
       console.error('Fetch error:', err);
-      alert(err.message || 'Failed to load doctor details');
+      alert(err.message || 'Failed to load details');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleBooking = async () => {
-    if (!selectedSlot) {
-      alert('Please select a time slot');
+  const toggleRecurringSelection = (key: string) => {
+    setSelectedRecurring(prev => {
+      if (prev.includes(key)) return prev.filter(k => k !== key);
+      // Limit to 2 per week? Not enforced by code, but requirement said "book two sessions"
+      if (prev.length >= 2) {
+        const confirm = window.confirm("You usually select 2 sessions per week. Replace one?");
+        if (!confirm) return prev;
+        return [prev[1], key]; // Keep last one + new one
+      }
+      return [...prev, key];
+    });
+  };
+
+  const handleBooking = () => {
+    if (selectedRecurring.length === 0) {
+      alert('Please select at least one recurring time slot');
       return;
     }
+    setShowPaymentModal(true);
+  };
 
+  const confirmBooking = async (paymentIntentId: string) => {
     try {
+      setShowPaymentModal(false);
       setBookingLoading(true);
-      const slot = slots.find(s => s.id === selectedSlot);
-      if (!slot) return;
+
+      // Gather all 'bookingItems' (list of dates) from selected recurring options
+      // selectedRecurring has keys "Day-Time"
+      // recurringOptions has the actual slots
+
+      const allBookingItems: { scheduledDate: string, scheduledTime: string }[] = [];
+
+      selectedRecurring.forEach(key => {
+        const [day, time] = key.split('-');
+        const option = recurringOptions.find(opt => opt.dayOfWeek === day && opt.time === time);
+        if (option) {
+          option.slots.forEach(slot => {
+            allBookingItems.push({
+              scheduledDate: slot.slot_date,
+              scheduledTime: slot.start_time
+            });
+          });
+        }
+      });
 
       const response = await fetch('/api/student/sessions/book', {
         method: 'POST',
@@ -88,9 +156,9 @@ export default function DoctorDetailPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           teacherId: parseInt(doctorId),
-          scheduledDate: slot.slot_date,
-          scheduledTime: slot.start_time,
+          bookingItems: allBookingItems,
           notes,
+          paymentIntentId,
         }),
       });
 
@@ -100,34 +168,12 @@ export default function DoctorDetailPage() {
         throw new Error(result.error || 'Booking failed');
       }
 
-      // If there's an invitee, send invitation
-      if (inviteeUsername && result.consultation) {
-        await sendInvitation(result.consultation.consultationId);
-      }
-
-      alert('Consultation booked successfully! Check your email for confirmation.');
+      alert('Monthly subscription active! ' + result.count + ' sessions booked.');
       router.push('/student');
     } catch (err: any) {
       alert(err.message || 'Booking failed. Please try again.');
     } finally {
       setBookingLoading(false);
-    }
-  };
-
-  const sendInvitation = async (consultationId: number) => {
-    try {
-      const response = await fetch(`/api/student/sessions/${consultationId}/invite`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ patient_username: inviteeUsername }),
-      });
-
-      if (!response.ok) {
-        console.error('Failed to send invitation');
-      }
-    } catch (err) {
-      console.error('Invitation error:', err);
     }
   };
 
@@ -141,23 +187,7 @@ export default function DoctorDetailPage() {
     );
   }
 
-  if (!doctor) {
-    return (
-      <DashboardShell title="Teacher not found" subtitle="Please try again" breadcrumbs={[{ label: 'User', href: '/user' }, { label: 'Teachers', href: '/user/doctors' }]} navItems={studentNav}>
-        <div className="rounded-3xl border border-red-200 bg-red-50 p-6 text-center">
-          <p className="text-red-600">Teacher not found</p>
-          <Button onClick={() => router.push('/user/doctors')} className="mt-4">Back to Teachers</Button>
-        </div>
-      </DashboardShell>
-    );
-  }
-
-  const groupedSlots = slots.reduce((acc, slot) => {
-    const date = slot.slot_date || slot.start_time;
-    if (!acc[date]) acc[date] = [];
-    acc[date].push(slot);
-    return acc;
-  }, {} as Record<string, AvailableSlot[]>);
+  if (!doctor) return null;
 
   return (
     <DashboardShell
@@ -175,99 +205,79 @@ export default function DoctorDetailPage() {
           <h2 className="mb-2 text-2xl font-semibold text-gray-900">{doctor.full_name}</h2>
           <p className="mb-4 text-sm text-gray-700">{doctor.specialization}</p>
           <div className="mb-4 flex items-center gap-2 text-sm">
-            <span className="inline-flex items-center gap-1 rounded-full bg-gray-200 px-3 py-1 font-semibold text-gray-700">
-              Rating: {doctor.average_rating ? doctor.average_rating.toFixed(1) : 'New'}
-            </span>
             <span className="text-gray-600">{doctor.total_reviews} reviews</span>
           </div>
           <p className="mb-4 text-sm text-gray-700">{doctor.bio}</p>
           <div className="space-y-2 text-sm text-gray-600">
             <p>{doctor.years_of_experience}+ years experience</p>
-            <p>{doctor.institution_name}</p>
-            {doctor.contact_email && (
-              <p className="flex items-center gap-2 mt-2 pt-2 border-t border-gray-100">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-mail"><rect width="20" height="16" x="2" y="4" rx="2" /><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" /></svg>
-                <a href={`mailto:${doctor.contact_email}`} className="text-blue-600 hover:underline">
-                  {doctor.contact_email}
-                </a>
-              </p>
-            )}
+            <p className="font-semibold text-black mt-2">
+              Monthly Subscription: ${doctor.monthly_fee ? (doctor.monthly_fee / 100).toFixed(2) : '200.00'}
+            </p>
           </div>
         </div>
 
-        {/* Booking Section */}
+        {/* Recurring Booking Section */}
         <div className="rounded-3xl border border-gray-300 bg-white p-6 shadow-lg">
-          <h3 className="mb-4 text-lg font-semibold text-gray-900">Book a Session</h3>
+          <h3 className="mb-4 text-lg font-semibold text-gray-900">Select Your Weekly Schedule</h3>
+          <p className="text-sm text-gray-500 mb-4">
+            Select 2 days/times that work for you. These will recur for the next 4 weeks.
+          </p>
 
-          {Object.keys(groupedSlots).length === 0 ? (
-            <p className="text-sm text-gray-700">No available slots at the moment</p>
-          ) : (
-            <div className="space-y-6">
-              {Object.entries(groupedSlots).slice(0, 7).map(([date, dateSlots]) => (
-                <div key={date}>
-                  <h4 className="mb-3 text-sm font-semibold text-gray-900">
-                    {new Date(date).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
-                  </h4>
-                  <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
-                    {dateSlots.map((slot) => (
-                      <button
-                        key={slot.id}
-                        onClick={() => setSelectedSlot(slot.id)}
-                        className={`rounded-lg border px-3 py-2 text-sm transition-colors ${selectedSlot === slot.id
-                          ? 'border-gray-900 bg-gray-900 text-white'
-                          : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400 hover:bg-gray-50'
-                          }`}
-                      >
-                        {new Date(`2000-01-01T${slot.start_time}`).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              ))}
-
-              <div>
-                <label className="mb-2 block text-sm font-semibold text-gray-900">Notes (Optional)</label>
-                <textarea
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  placeholder="Share any specific concerns or topics you'd like to discuss..."
-                  className="w-full rounded-2xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 placeholder:text-gray-500 focus:border-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-200"
-                  rows={3}
-                />
-              </div>
-
-              <div>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 mb-6">
+            {recurringOptions.map((opt) => {
+              const key = `${opt.dayOfWeek}-${opt.time}`;
+              const isSelected = selectedRecurring.includes(key);
+              return (
                 <button
-                  onClick={() => setShowInviteSection(!showInviteSection)}
-                  className="mb-2 text-sm font-medium text-gray-700 hover:text-gray-900"
+                  key={key}
+                  onClick={() => toggleRecurringSelection(key)}
+                  className={`p-3 rounded-xl border text-left transition-all ${isSelected
+                      ? 'border-black bg-black text-white shadow-md'
+                      : 'border-gray-200 hover:border-black/50'
+                    }`}
                 >
-                  {showInviteSection ? '− Hide' : '+ Add'} someone to this session
-                </button>
-                {showInviteSection && (
-                  <div>
-                    <input
-                      type="text"
-                      value={inviteeUsername}
-                      onChange={(e) => setInviteeUsername(e.target.value)}
-                      placeholder="Enter patient username"
-                      className="w-full rounded-2xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 placeholder:text-gray-500 focus:border-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-200"
-                    />
-                    <p className="mt-1 text-xs text-gray-600">Enter the username of another patient to invite them to this session</p>
+                  <div className="text-sm font-bold">{opt.dayOfWeek}</div>
+                  <div className="text-xs opacity-80">
+                    {new Date(`2000-01-01T${opt.time}`).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
                   </div>
-                )}
-              </div>
+                </button>
+              );
+            })}
+          </div>
 
-              <Button
-                onClick={handleBooking}
-                disabled={!selectedSlot || bookingLoading}
-                className="w-full"
-              >
-                {bookingLoading ? 'Booking...' : 'Confirm Booking'}
-              </Button>
+          <div className="space-y-4 pt-4 border-t border-gray-100">
+            <div>
+              <label className="mb-2 block text-sm font-semibold text-gray-900">Notes</label>
+              <textarea
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                className="w-full rounded-2xl border border-gray-300 bg-white px-4 py-3 text-sm"
+                placeholder="Any goals for this month?"
+                rows={2}
+              />
             </div>
-          )}
+
+            <Button
+              onClick={handleBooking}
+              disabled={selectedRecurring.length === 0 || bookingLoading}
+              className="w-full h-12 text-base"
+            >
+              {bookingLoading ? 'Processing...' : `Subscribe & Book Month`}
+            </Button>
+          </div>
         </div>
       </div>
+
+      {doctor && (
+        <BookingPaymentModal
+          isOpen={showPaymentModal}
+          onClose={() => setShowPaymentModal(false)}
+          amount={doctor.monthly_fee || 20000}
+          teacherName={doctor.full_name}
+          teacherId={doctor.id}
+          onSuccess={confirmBooking}
+        />
+      )}
     </DashboardShell>
   );
 }

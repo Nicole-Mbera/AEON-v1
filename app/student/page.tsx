@@ -160,30 +160,7 @@ export default function UserProfilePage() {
         </div>
       )}
 
-      {data.recentArticles.length > 0 && (
-        <section className="rounded-3xl border border-black/20 bg-white p-6 shadow-[0_30px_80px_-60px_rgba(0,0,0,0.2)]">
-          <div className="mb-6 flex items-center justify-between">
-            <h3 className="text-lg font-semibold text-black">Latest Articles </h3>
-            <Link href="/education" className="text-sm font-medium text-black/70 hover:text-black">View all →</Link>
-          </div>
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {data.recentArticles.map((article) => (
-              <div key={article.id} className="group cursor-pointer">
-                <div className="mb-3 overflow-hidden rounded-2xl bg-black/5">
-                  {article.thumbnail_url ? (
-                    <img src={article.thumbnail_url} alt={article.title} className="h-40 w-full object-cover transition-transform group-hover:scale-105" />
-                  ) : (
-                    <div className="flex h-40 items-center justify-center"><span className="text-4xl text-black/50">Education</span></div>
-                  )}
-                </div>
-                <span className="mb-1 inline-block rounded-full bg-black px-3 py-1 text-xs font-semibold text-white">{article.category}</span>
-                <h4 className="mb-1 text-sm font-semibold text-black line-clamp-2">{article.title}</h4>
-                <p className="text-xs text-black/60">By {article.author_name} {article.author_specialization && `• ${article.author_specialization}`}</p>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
+
 
       <section className="rounded-3xl border border-black/20 bg-gradient-to-br from-white to-black/5 p-8 text-center shadow-[0_30px_80px_-60px_rgba(0,0,0,0.2)]">
         <h3 className="mb-2 text-lg font-semibold text-black">Share Your Story</h3>

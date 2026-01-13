@@ -8,10 +8,30 @@ dotenv.config();
 const url = process.env.TURSO_DATABASE_URL || 'file:aeon.db';
 const authToken = process.env.TURSO_AUTH_TOKEN;
 
-const client: Client = createClient({
+const rawClient: Client = createClient({
   url,
   authToken,
 });
+
+// Retry wrapper
+const client = {
+  ...rawClient,
+  execute: async (stmt: any) => {
+    let attempts = 0;
+    const maxAttempts = 3;
+    while (attempts < maxAttempts) {
+      try {
+        return await rawClient.execute(stmt);
+      } catch (error: any) {
+        attempts++;
+        if (attempts >= maxAttempts) throw error;
+        console.warn(`DB execute failed (attempt ${attempts}/${maxAttempts}), retrying...`, error.message);
+        await new Promise(r => setTimeout(r, 1000 * attempts));
+      }
+    }
+    throw new Error("DB Retry failed"); // Should be unreachable
+  }
+};
 
 export default client;
 

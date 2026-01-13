@@ -244,7 +244,7 @@ export function SignupForm() {
         document.cookie = `token=${data.token}; path=/; max-age=604800; SameSite=Lax`;
 
         const redirectMap = {
-          'student': '/subscription', // TODO: Check if this is correct, user mentioned subscription
+          'student': '/student',
           'teacher': '/teacher/pending',
         };
 

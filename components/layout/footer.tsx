@@ -15,7 +15,7 @@ const columns = [
       { name: "About Us", href: "/#about" },
       { name: "How It Works", href: "/#features" },
       { name: "Success Stories", href: "/testimonials" },
-      { name: "Education Hub", href: "/education" },
+      { name: "Education Hub", href: "/resourceHub" },
     ],
   },
   {

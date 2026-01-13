@@ -169,10 +169,18 @@ async function handlePaymentFailure(paymentIntent: Stripe.PaymentIntent) {
 
 async function handleSubscriptionPayment(invoice: Stripe.Invoice) {
   // Logic to update user subscription status
-  if (invoice.customer_email) {
+  if (invoice.customer_email && invoice.lines?.data?.[0]?.period_end) {
     console.log(`Subscription payment received for ${invoice.customer_email}`);
-    // Here you would look up the user by email and update their subscription status
-    // For example:
-    // db.execute('UPDATE users SET subscription_status = "active" WHERE email = ?', [invoice.customer_email]);
+
+    // Get subscription end date from invoice line item (period_end is unix timestamp)
+    const periodEnd = invoice.lines.data[0].period_end;
+    const endDate = new Date(periodEnd * 1000).toISOString();
+
+    await db.execute({
+      sql: `UPDATE users SET subscription_status = 'active', subscription_end_date = ? WHERE email = ?`,
+      args: [endDate, invoice.customer_email]
+    });
+
+    console.log(`Updated subscription for ${invoice.customer_email} until ${endDate}`);
   }
 }

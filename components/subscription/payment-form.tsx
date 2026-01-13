@@ -23,8 +23,8 @@ function SubscriptionCheckoutForm({ redirectUrl = "/student/assessment" }: { red
     const elements = useElements();
     const router = useRouter();
 
-    // Fixed subscription amount (e.g., $29/month)
-    const [amount] = useState("29");
+    // Fixed subscription amount (e.g., $5/month)
+    const [amount] = useState("5");
     const [email, setEmail] = useState("");
     const [name, setName] = useState("");
     const [isLoading, setIsLoading] = useState(false);
