@@ -8,6 +8,7 @@ interface SectionHeadingProps {
   align?: "left" | "center";
   className?: string;
   children?: ReactNode;
+  variant?: "default" | "light"; // default = for dark bg (white text), light = for light bg (black text)
 }
 
 export function SectionHeading({
@@ -17,7 +18,10 @@ export function SectionHeading({
   align = "center",
   className,
   children,
+  variant = "default",
 }: SectionHeadingProps) {
+  const isLight = variant === "light";
+
   return (
     <div
       className={cn(
@@ -28,16 +32,33 @@ export function SectionHeading({
       )}
     >
       {eyebrow ? (
-        <span className="inline-block rounded-full bg-white px-4 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-black">
+        <span
+          className={cn(
+            "inline-block rounded-full px-4 py-1 text-xs font-semibold uppercase tracking-[0.2em]",
+            isLight ? "bg-black text-white" : "bg-white text-black"
+          )}
+        >
           {eyebrow}
         </span>
       ) : null}
       <div className="space-y-3">
-        <h2 className="text-3xl font-semibold tracking-tight text-white sm:text-4xl">
+        <h2
+          className={cn(
+            "text-3xl font-semibold tracking-tight sm:text-4xl",
+            isLight ? "text-black" : "text-white"
+          )}
+        >
           {title}
         </h2>
         {description && (
-          <p className="text-base text-white sm:text-lg">{description}</p>
+          <p
+            className={cn(
+              "text-base sm:text-lg",
+              isLight ? "text-black/70" : "text-white"
+            )}
+          >
+            {description}
+          </p>
         )}
         {children}
       </div>

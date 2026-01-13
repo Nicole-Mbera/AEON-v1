@@ -20,7 +20,7 @@ export async function PUT(
 
     const testimonialId = params.id;
     const body = await request.json();
-    const { is_approved, is_featured } = body;
+    const { approval_status, is_featured } = body;
 
     // Verify testimonial exists
     const testimonialRes = await db.execute({
@@ -41,9 +41,9 @@ export async function PUT(
     const updateParams = [];
     const updates = [];
 
-    if (is_approved !== undefined) {
-      updates.push('is_approved = ?');
-      updateParams.push(is_approved ? 1 : 0);
+    if (approval_status !== undefined) {
+      updates.push('approval_status = ?');
+      updateParams.push(approval_status);
     }
 
     if (is_featured !== undefined) {

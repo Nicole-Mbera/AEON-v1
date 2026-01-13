@@ -3,6 +3,7 @@ import { Footer } from "@/components/layout/footer";
 import { HeroSection } from "@/components/sections/hero";
 import { WhyBodyWiseSection } from "@/components/sections/why-bodywise";
 import { CoreFeaturesSection } from "@/components/sections/core-features";
+import { TestimonialsSection } from "@/components/sections/testimonials";
 
 
 export default function Home() {
@@ -13,6 +14,7 @@ export default function Home() {
                 <HeroSection />
                 <WhyBodyWiseSection />
                 <CoreFeaturesSection />
+                <TestimonialsSection />
             </main>
             <Footer />
         </div>

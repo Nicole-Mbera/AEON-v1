@@ -26,7 +26,7 @@ export async function GET(request: Request) {
         t.content,
         t.rating,
         t.is_featured,
-        t.is_approved,
+        t.approval_status,
         t.created_at,
         t.user_type,
         t.user_id,
@@ -50,9 +50,9 @@ export async function GET(request: Request) {
     const params: any[] = [];
 
     if (status === 'pending') {
-      query += ' AND t.is_approved = 0';
+      query += " AND t.approval_status = 'pending'";
     } else if (status === 'approved') {
-      query += ' AND t.is_approved = 1';
+      query += " AND t.approval_status = 'approved'";
     }
 
     query += ' ORDER BY t.created_at DESC LIMIT ? OFFSET ?';
@@ -66,9 +66,9 @@ export async function GET(request: Request) {
     const countParams: any[] = [];
 
     if (status === 'pending') {
-      countQuery += ' AND is_approved = 0';
+      countQuery += " AND approval_status = 'pending'";
     } else if (status === 'approved') {
-      countQuery += ' AND is_approved = 1';
+      countQuery += " AND approval_status = 'approved'";
     }
 
     const countRes = await db.execute({ sql: countQuery, args: countParams });

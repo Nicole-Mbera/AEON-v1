@@ -88,4 +88,9 @@ export const studentNav = [
     href: "/resourceHub",
     icon: "docs",
   },
+  {
+    label: "Share Testimonial",
+    href: "/testimonials",
+    icon: "testimonials",
+  },
 ];

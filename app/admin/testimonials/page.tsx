@@ -10,7 +10,7 @@ interface Testimonial {
   content: string;
   rating: number | null;
   is_featured: number;
-  is_approved: number;
+  approval_status: 'pending' | 'approved' | 'rejected';
   created_at: string;
   user_type: string;
   user_email: string;
@@ -48,7 +48,7 @@ export default function AdminTestimonialsPage() {
       const response = await fetch(`/api/admin/testimonials/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'approve', is_featured: isFeatured }),
+        body: JSON.stringify({ approval_status: 'approved', is_featured: isFeatured }),
       });
 
       if (!response.ok) throw new Error('Failed to approve testimonial');
@@ -66,7 +66,7 @@ export default function AdminTestimonialsPage() {
       const response = await fetch(`/api/admin/testimonials/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'reject' }),
+        body: JSON.stringify({ approval_status: 'rejected' }),
       });
 
       if (!response.ok) throw new Error('Failed to reject testimonial');
@@ -90,11 +90,10 @@ export default function AdminTestimonialsPage() {
           <button
             key={status}
             onClick={() => setFilter(status)}
-            className={`rounded-2xl px-6 py-3 text-sm font-semibold transition-all ${
-              filter === status
+            className={`rounded-2xl px-6 py-3 text-sm font-semibold transition-all ${filter === status
                 ? 'bg-black text-white shadow-lg scale-105'
                 : 'bg-white text-black border-2 border-gray-200 hover:border-black hover:shadow-md'
-            }`}
+              }`}
           >
             {status.charAt(0).toUpperCase() + status.slice(1)}
           </button>
@@ -140,7 +139,7 @@ export default function AdminTestimonialsPage() {
 
               <p className="mb-4 text-sm text-gray-700">{testimonial.content}</p>
 
-              {!testimonial.is_approved && (
+              {testimonial.approval_status === 'pending' && (
                 <div className="flex gap-2">
                   <Button
                     onClick={() => handleApprove(testimonial.id, false)}

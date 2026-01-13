@@ -29,7 +29,7 @@ export async function GET(request: Request) {
       JOIN users u ON t.user_id = u.id
       LEFT JOIN students s ON t.user_type = 'student' AND u.id = s.user_id
       LEFT JOIN teachers hp ON t.user_type = 'teacher' AND u.id = hp.user_id
-      WHERE t.is_approved = 1
+      WHERE t.approval_status = 'approved'
     `;
 
     const params = [];
@@ -100,8 +100,8 @@ export async function POST(request: Request) {
     const userRole = currentUser.role === 'admin' ? 'student' : currentUser.role; // Admins shouldn't really leave testimonials but fallback to student
 
     await db.execute({
-      sql: `INSERT INTO testimonials (user_id, user_type, content, rating, is_approved, is_featured)
-      VALUES (?, ?, ?, ?, 0, 0)`,
+      sql: `INSERT INTO testimonials (user_id, user_type, content, rating, approval_status, is_featured)
+      VALUES (?, ?, ?, ?, 'pending', 0)`,
       args: [currentUser.userId, userRole, content, rating]
     });
 

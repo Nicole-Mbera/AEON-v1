@@ -79,6 +79,7 @@ export const SOCIAL_LINKS = [
 export const NAV_LINKS = [
   { label: "Features", href: "#features" },
   { label: "About", href: "#why" },
+  { label: "Testimonials", href: "#community" },
   { label: "Library", href: "/resourceHub" },
   { label: "Teachers", href: "/teachers" },
   { label: "Login", href: "/login" },

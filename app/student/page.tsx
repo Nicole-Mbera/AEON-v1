@@ -148,6 +148,8 @@ export default function UserProfilePage() {
             ))}
           </ul>
         </div>
+
+
       </section>
 
       {formattedAppointments.length > 0 ? (

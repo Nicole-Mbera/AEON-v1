@@ -26,9 +26,9 @@ export function TestimonialsSection() {
   const fetchTestimonials = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/testimonials?limit=3');
+      const response = await fetch('/api/testimonials?limit=12');
       const data = await response.json();
-      
+
       if (data.success && data.data) {
         // API already returns approved testimonials
         setTestimonials(data.data);
@@ -56,9 +56,10 @@ export function TestimonialsSection() {
     >
       <SectionHeading
         eyebrow="What Our Community Says"
-        title="Real stories from African youth who found confidence and support through BodyWise."
+        title="Stories from students who leveled up their fluency and found support through AEON."
         align="center"
         className="mb-14"
+        variant="light"
       />
       <div className="grid gap-10 lg:grid-cols-3">
         {loading ? (
