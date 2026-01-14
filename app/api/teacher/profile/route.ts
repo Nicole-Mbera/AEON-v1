@@ -22,22 +22,19 @@ export async function GET(request: Request) {
 
     if (!teacher) {
       // Auto-heal: Create orphan teacher profile
-      console.log(`Orphan teacher user ${currentUser.userId} detected. Creating placeholder profile.`);
+      console.log(`[Profile] Orphan teacher user ${currentUser.userId} detected. Creating placeholder profile.`);
 
-      const insertRes = await db.execute({
-        sql: `INSERT INTO teachers (user_id, full_name, contact_email) VALUES (?, ?, ?) RETURNING *`,
-        args: [currentUser.userId, 'New Teacher', currentUser.email]
-      });
-
-      // Fallback if RETURNING not supported (though LibSQL usually supports it)
-      if (insertRes.rows.length > 0) {
-        return NextResponse.json({
-          success: true,
-          data: insertRes.rows[0]
+      try {
+        await db.execute({
+          sql: `INSERT INTO teachers (user_id, full_name, contact_email) VALUES (?, ?, ?)`,
+          args: [currentUser.userId, 'New Teacher', currentUser.email || null]
         });
+        console.log(`[Profile] Insert successful.`);
+      } catch (err) {
+        console.error(`[Profile] Insert failed:`, err);
       }
 
-      // Fetch again if RETURNING failed
+      // Fetch again if RETURNING failed or we didn't use it
       const retryRes = await db.execute({
         sql: `SELECT * FROM teachers WHERE user_id = ?`,
         args: [currentUser.userId]
