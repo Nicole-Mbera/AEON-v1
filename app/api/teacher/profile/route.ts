@@ -15,16 +15,38 @@ export async function GET(request: Request) {
     }
 
     const teacherRes = await db.execute({
-      sql: `SELECT * FROM teachers WHERE user_id = ?`,
+      sql: `SELECT t.*, u.email FROM teachers t JOIN users u ON t.user_id = u.id WHERE t.user_id = ?`,
       args: [currentUser.userId]
     });
     const teacher = teacherRes.rows[0];
 
     if (!teacher) {
-      return NextResponse.json(
-        { error: 'Teacher profile not found' },
-        { status: 404 }
-      );
+      // Auto-heal: Create orphan teacher profile
+      console.log(`Orphan teacher user ${currentUser.userId} detected. Creating placeholder profile.`);
+
+      const insertRes = await db.execute({
+        sql: `INSERT INTO teachers (user_id, full_name, email) VALUES (?, ?, ?) RETURNING *`,
+        args: [currentUser.userId, 'New Teacher', currentUser.email]
+      });
+
+      // Fallback if RETURNING not supported (though LibSQL usually supports it)
+      if (insertRes.rows.length > 0) {
+        return NextResponse.json({
+          success: true,
+          data: insertRes.rows[0]
+        });
+      }
+
+      // Fetch again if RETURNING failed
+      const retryRes = await db.execute({
+        sql: `SELECT * FROM teachers WHERE user_id = ?`,
+        args: [currentUser.userId]
+      });
+
+      return NextResponse.json({
+        success: true,
+        data: retryRes.rows[0]
+      });
     }
 
     return NextResponse.json({

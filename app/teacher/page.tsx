@@ -362,7 +362,7 @@ export default function TeacherDashboardPage() {
         </Link>
 
         {/* Payouts Card */}
-        {/* TODO: Implement payouts */}
+
         <div
           onClick={data.professional.stripe_account_id ? undefined : handleSetupPayouts}
           className={`group cursor-pointer rounded-3xl border border-[gray-200] bg-gradient-to-br from-white to-[gray-50] p-6 shadow-[0_20px_60px_-50px_rgba(0,0,0,0.1)] transition-all hover:shadow-[0_30px_80px_-40px_rgba(0,0,0,0.2)] ${payoutLoading ? 'opacity-70 pointer-events-none' : ''}`}

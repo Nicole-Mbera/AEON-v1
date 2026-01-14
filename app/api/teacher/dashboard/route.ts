@@ -28,13 +28,36 @@ export async function GET(request: Request) {
         WHERE t.user_id = ?`,
       args: [currentUser.userId]
     });
-    const professional = professionalRes.rows[0] as unknown as any;
+    let professional = professionalRes.rows[0] as unknown as any;
 
     if (!professional) {
-      return NextResponse.json(
-        { error: 'Teacher profile not found' },
-        { status: 404 }
-      );
+      // Auto-heal: Create orphan teacher profile
+      console.log(`Orphan teacher user ${currentUser.userId} detected in dashboard. Creating placeholder.`);
+
+      const insertRes = await db.execute({
+        sql: `INSERT INTO teachers (user_id, full_name, email) VALUES (?, ?, ?) RETURNING *`,
+        args: [currentUser.userId, 'New Teacher', currentUser.email]
+      });
+
+      // Fetch the newly created profile to proceed
+      const retryRes = await db.execute({
+        sql: `SELECT 
+          t.id,
+          t.full_name,
+          t.specialization,
+          t.years_of_experience,
+          t.average_rating,
+          t.total_reviews,
+          t.stripe_account_id
+        FROM teachers t
+        WHERE t.user_id = ?`,
+        args: [currentUser.userId]
+      });
+      professional = retryRes.rows[0] as unknown as any;
+
+      if (!professional) {
+        return NextResponse.json({ error: 'Failed to create teacher profile' }, { status: 500 });
+      }
     }
 
     // Get consultation stats
