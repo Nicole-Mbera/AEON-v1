@@ -22,7 +22,8 @@ export async function GET(request: Request) {
           t.specialization,
           t.years_of_experience,
           t.average_rating,
-          t.total_reviews
+          t.total_reviews,
+          t.stripe_account_id
         FROM teachers t
         WHERE t.user_id = ?`,
       args: [currentUser.userId]
@@ -134,6 +135,7 @@ export async function GET(request: Request) {
           experience: professional.years_of_experience,
           rating: professional.average_rating,
           total_reviews: professional.total_reviews,
+          stripe_account_id: professional.stripe_account_id,
         },
         stats: {
           totalConsultations: consultationStats?.total || 0,

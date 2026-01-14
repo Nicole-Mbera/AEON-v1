@@ -169,11 +169,11 @@ async function handlePaymentFailure(paymentIntent: Stripe.PaymentIntent) {
 
 async function handleSubscriptionPayment(invoice: Stripe.Invoice) {
   // Logic to update user subscription status
-  if (invoice.customer_email && invoice.lines?.data?.[0]?.period_end) {
+  if (invoice.customer_email && invoice.lines?.data?.[0]?.period?.end) {
     console.log(`Subscription payment received for ${invoice.customer_email}`);
 
     // Get subscription end date from invoice line item (period_end is unix timestamp)
-    const periodEnd = invoice.lines.data[0].period_end;
+    const periodEnd = invoice.lines.data[0].period.end;
     const endDate = new Date(periodEnd * 1000).toISOString();
 
     await db.execute({

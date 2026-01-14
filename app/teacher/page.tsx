@@ -6,7 +6,7 @@ import { StatCard } from '@/components/dashboard/stat-card';
 import { teacherNav } from '@/lib/navigation';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { Calendar, Clock, Users, CheckCircle, XCircle, Video } from 'lucide-react';
+import { Calendar, Clock, Users, CheckCircle, XCircle, Video, CreditCard } from 'lucide-react';
 
 interface Booking {
   id: number;
@@ -29,6 +29,7 @@ interface DashboardData {
     experience: number;
     rating: number;
     total_reviews: number;
+    stripe_account_id?: string | null;
   };
   stats: {
     totalConsultations: number;
@@ -45,6 +46,7 @@ interface DashboardData {
 export default function TeacherDashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [payoutLoading, setPayoutLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState(new Date());
 
@@ -111,6 +113,27 @@ export default function TeacherDashboardPage() {
     } catch (err) {
       console.error('Cancel error:', err);
       alert('Failed to cancel session. Please try again.');
+    }
+  };
+
+  const handleSetupPayouts = async () => {
+    try {
+      setPayoutLoading(true);
+      const response = await fetch('/api/stripe/account', {
+        method: 'POST',
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to initiate onboarding');
+      }
+
+      // Redirect to Stripe
+      window.location.href = result.url;
+    } catch (err: any) {
+      alert(err.message);
+      setPayoutLoading(false);
     }
   };
 
@@ -337,6 +360,31 @@ export default function TeacherDashboardPage() {
             <p className="text-sm text-[gray-600]">Edit your professional information</p>
           </div>
         </Link>
+
+        {/* Payouts Card */}
+        {/* TODO: Implement payouts */}
+        <div
+          onClick={data.professional.stripe_account_id ? undefined : handleSetupPayouts}
+          className={`group cursor-pointer rounded-3xl border border-[gray-200] bg-gradient-to-br from-white to-[gray-50] p-6 shadow-[0_20px_60px_-50px_rgba(0,0,0,0.1)] transition-all hover:shadow-[0_30px_80px_-40px_rgba(0,0,0,0.2)] ${payoutLoading ? 'opacity-70 pointer-events-none' : ''}`}
+        >
+          <div className="flex justify-between items-start mb-4">
+            <CreditCard className="h-10 w-10 text-[gray-600] group-hover:text-[gray-300] transition-colors" />
+            {data.professional.stripe_account_id && (
+              <span className="inline-flex items-center rounded-full bg-green-100 px-2 py-1 text-xs font-medium text-green-700">
+                Active
+              </span>
+            )}
+          </div>
+          <h3 className="font-semibold text-[black] mb-2">
+            {data.professional.stripe_account_id ? 'Payouts Configured' : 'Setup Payouts'}
+          </h3>
+          <p className="text-sm text-[gray-600]">
+            {data.professional.stripe_account_id
+              ? 'Your bank account is connected'
+              : 'Connect bank to receive payments'}
+          </p>
+          {payoutLoading && <p className="text-xs text-blue-600 mt-2">Redirecting to Stripe...</p>}
+        </div>
       </div>
     </DashboardShell>
   );
