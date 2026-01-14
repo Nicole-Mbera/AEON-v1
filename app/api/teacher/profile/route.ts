@@ -25,7 +25,7 @@ export async function GET(request: Request) {
       console.log(`Orphan teacher user ${currentUser.userId} detected. Creating placeholder profile.`);
 
       const insertRes = await db.execute({
-        sql: `INSERT INTO teachers (user_id, full_name, email) VALUES (?, ?, ?) RETURNING *`,
+        sql: `INSERT INTO teachers (user_id, full_name, contact_email) VALUES (?, ?, ?) RETURNING *`,
         args: [currentUser.userId, 'New Teacher', currentUser.email]
       });
 
