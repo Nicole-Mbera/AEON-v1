@@ -1,6 +1,10 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import db from '@/lib/db';
+import Stripe from 'stripe';
+
+const stripeKey = process.env.STRIPE_SECRET_KEY;
+const stripe = stripeKey ? new Stripe(stripeKey) : null;
 
 export async function GET(
     request: NextRequest,
@@ -24,6 +28,7 @@ export async function GET(
             t.institution_name,
             t.consultation_fee,
             t.monthly_fee,
+            t.stripe_account_id,
             COALESCE(t.contact_email, u.email) as contact_email
         FROM teachers t
         JOIN users u ON t.user_id = u.id
@@ -39,7 +44,20 @@ export async function GET(
             );
         }
 
-        return NextResponse.json({ data: teacher });
+        let isStripeOnboarded = false;
+
+        if (teacher.stripe_account_id && stripe) {
+            try {
+                const account = await stripe.accounts.retrieve(teacher.stripe_account_id as string);
+                if (account.capabilities?.transfers === 'active' && account.details_submitted) {
+                    isStripeOnboarded = true;
+                }
+            } catch (e) {
+                console.error("Stripe check failed for teacher " + teacherId, e);
+            }
+        }
+
+        return NextResponse.json({ data: { ...teacher, is_onboarded: isStripeOnboarded } });
 
     } catch (error) {
         console.error('Error fetching teacher:', error);

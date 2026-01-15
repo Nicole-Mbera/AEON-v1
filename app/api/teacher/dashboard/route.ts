@@ -1,6 +1,10 @@
 import { NextResponse } from 'next/server';
 import { getUserFromRequest, hasRole } from '@/lib/auth';
 import db from '@/lib/db';
+import Stripe from 'stripe';
+
+const stripeKey = process.env.STRIPE_SECRET_KEY;
+const stripe = stripeKey ? new Stripe(stripeKey) : null;
 
 // GET /api/teacher/dashboard - Get teacher dashboard data
 export async function GET(request: Request) {
@@ -57,6 +61,31 @@ export async function GET(request: Request) {
 
       if (!professional) {
         return NextResponse.json({ error: 'Failed to create teacher profile' }, { status: 500 });
+      }
+    }
+
+    // Check Stripe Verification Status
+    let isStripeVerified = false;
+    let stripeAccountStatus = 'incomplete';
+
+    if (professional.stripe_account_id && stripe) {
+      try {
+        const account = await stripe.accounts.retrieve(professional.stripe_account_id);
+
+        // Check if transfers are active
+        const transfersActive = account.capabilities?.transfers === 'active';
+        // Also check if details are submitted (usually required for capabilities to be active)
+        const detailsSubmitted = account.details_submitted;
+
+        if (transfersActive && detailsSubmitted) {
+          isStripeVerified = true;
+          stripeAccountStatus = 'complete';
+        } else if (detailsSubmitted) {
+          stripeAccountStatus = 'pending_verification';
+        }
+      } catch (stripeError) {
+        console.error('Error fetching Stripe account:', stripeError);
+        // Keep as false/incomplete
       }
     }
 
@@ -159,6 +188,8 @@ export async function GET(request: Request) {
           rating: professional.average_rating,
           total_reviews: professional.total_reviews,
           stripe_account_id: professional.stripe_account_id,
+          is_stripe_verified: isStripeVerified,
+          stripe_status: stripeAccountStatus,
         },
         stats: {
           totalConsultations: consultationStats?.total || 0,

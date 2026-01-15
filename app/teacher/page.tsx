@@ -30,6 +30,8 @@ interface DashboardData {
     rating: number;
     total_reviews: number;
     stripe_account_id?: string | null;
+    is_stripe_verified?: boolean;
+    stripe_status?: string;
   };
   stats: {
     totalConsultations: number;
@@ -364,24 +366,36 @@ export default function TeacherDashboardPage() {
         {/* Payouts Card */}
 
         <div
-          onClick={data.professional.stripe_account_id ? undefined : handleSetupPayouts}
+          onClick={data.professional.is_stripe_verified ? undefined : handleSetupPayouts}
           className={`group cursor-pointer rounded-3xl border border-[gray-200] bg-gradient-to-br from-white to-[gray-50] p-6 shadow-[0_20px_60px_-50px_rgba(0,0,0,0.1)] transition-all hover:shadow-[0_30px_80px_-40px_rgba(0,0,0,0.2)] ${payoutLoading ? 'opacity-70 pointer-events-none' : ''}`}
         >
           <div className="flex justify-between items-start mb-4">
             <CreditCard className="h-10 w-10 text-[gray-600] group-hover:text-[gray-300] transition-colors" />
+
             {data.professional.stripe_account_id && (
-              <span className="inline-flex items-center rounded-full bg-green-100 px-2 py-1 text-xs font-medium text-green-700">
-                Active
+              <span className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${data.professional.is_stripe_verified
+                  ? 'bg-green-100 text-green-700'
+                  : data.professional.stripe_status === 'pending_verification'
+                    ? 'bg-yellow-100 text-yellow-700'
+                    : 'bg-red-100 text-red-700'
+                }`}>
+                {data.professional.is_stripe_verified
+                  ? 'Verified'
+                  : data.professional.stripe_status === 'pending_verification'
+                    ? 'Pending'
+                    : 'Incomplete'}
               </span>
             )}
           </div>
           <h3 className="font-semibold text-[black] mb-2">
-            {data.professional.stripe_account_id ? 'Payouts Configured' : 'Setup Payouts'}
+            {data.professional.is_stripe_verified ? 'Payouts Active' : 'Setup Payouts'}
           </h3>
           <p className="text-sm text-[gray-600]">
-            {data.professional.stripe_account_id
-              ? 'Your bank account is connected'
-              : 'Connect bank to receive payments'}
+            {data.professional.is_stripe_verified
+              ? 'Your account is verified and ready'
+              : data.professional.stripe_account_id
+                ? 'Complete verification to receive payments'
+                : 'Connect bank to receive payments'}
           </p>
           {payoutLoading && <p className="text-xs text-blue-600 mt-2">Redirecting to Stripe...</p>}
         </div>

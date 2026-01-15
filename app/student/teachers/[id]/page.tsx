@@ -19,6 +19,7 @@ interface Doctor {
   contact_email?: string;
   consultation_fee?: number;
   monthly_fee?: number;
+  is_onboarded?: boolean;
 }
 
 interface AvailableSlot {
@@ -232,8 +233,8 @@ export default function DoctorDetailPage() {
                   key={key}
                   onClick={() => toggleRecurringSelection(key)}
                   className={`p-3 rounded-xl border text-left transition-all ${isSelected
-                      ? 'border-black bg-black text-white shadow-md'
-                      : 'border-gray-200 hover:border-black/50'
+                    ? 'border-black bg-black text-white shadow-md'
+                    : 'border-gray-200 hover:border-black/50'
                     }`}
                 >
                   <div className="text-sm font-bold">{opt.dayOfWeek}</div>
@@ -259,10 +260,10 @@ export default function DoctorDetailPage() {
 
             <Button
               onClick={handleBooking}
-              disabled={selectedRecurring.length === 0 || bookingLoading}
+              disabled={selectedRecurring.length === 0 || bookingLoading || !doctor.is_onboarded}
               className="w-full h-12 text-base"
             >
-              {bookingLoading ? 'Processing...' : `Subscribe & Book Month`}
+              {bookingLoading ? 'Processing...' : (!doctor.is_onboarded ? 'Teacher Not Available' : `Subscribe & Book Month`)}
             </Button>
           </div>
         </div>
@@ -272,7 +273,7 @@ export default function DoctorDetailPage() {
         <BookingPaymentModal
           isOpen={showPaymentModal}
           onClose={() => setShowPaymentModal(false)}
-          amount={doctor.monthly_fee || 20000}
+          amount={doctor.monthly_fee || 3000}
           teacherName={doctor.full_name}
           teacherId={doctor.id}
           onSuccess={confirmBooking}
