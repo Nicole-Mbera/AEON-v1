@@ -17,7 +17,7 @@ export default function Home() {
                         '@type': 'Organization',
                         name: 'AEON Academy',
                         url: 'https://www.aeon-academy.com',
-                        logo: 'https://www.aeon-academy.com/favicon.ico',
+                        logo: 'https://www.aeon-academy.com/uploads/logo.jpeg',
                         sameAs: [
                             'https://twitter.com/aeonacademy',
                             'https://facebook.com/aeonacademy',

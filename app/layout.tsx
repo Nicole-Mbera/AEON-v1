@@ -26,8 +26,8 @@ export const metadata: Metadata = {
     default: 'AEON - Premier English Learning Platform',
     template: '%s | AEON Academy',
   },
-  description: 'Connect with expert English teachers for personalized one-on-one lessons. AEON Academy offers comprehensive learning resources, flexible scheduling, and verified professional tutors.',
-  keywords: ['English learning', 'online tutoring', 'ESL', 'language learning', 'English teachers', 'one-on-one lessons', 'AEON Academy'],
+  description: 'Connect with expert English teachers for personalized one-on-one lessons. AEON Academy offers comprehensive learning resources from Afghanistan, Middle East, and Africa to the world.',
+  keywords: ['English learning', 'online tutoring', 'ESL', 'language learning', 'English teachers', 'one-on-one lessons', 'AEON Academy', 'Afghanistan', 'Middle East', 'Africa', 'Learn English in Afghanistan', 'English for Middle East'],
   authors: [{ name: 'AEON Academy' }],
   creator: 'AEON Academy',
   publisher: 'AEON Academy',
@@ -40,10 +40,10 @@ export const metadata: Metadata = {
     siteName: 'AEON Academy',
     images: [
       {
-        url: '/og-image.png', // We should ensure this exists or use a default
+        url: '/uploads/logo.jpeg',
         width: 1200,
         height: 630,
-        alt: 'AEON Academy Platform',
+        alt: 'AEON Academy Logo',
       },
     ],
   },
@@ -51,7 +51,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'AEON - Premier English Learning Platform',
     description: 'Master English with verified experts. Personalized lessons, flexible scheduling.',
-    images: ['/og-image.png'],
+    images: ['/uploads/logo.jpeg'],
     creator: '@aeonacademy',
   },
   robots: {
