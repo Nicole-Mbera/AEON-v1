@@ -40,9 +40,7 @@ export const metadata: Metadata = {
     siteName: 'AEON Academy',
     images: [
       {
-        url: '/uploads/logo.jpeg',
-        width: 1200,
-        height: 630,
+        url: 'https://www.aeon-academy.com/uploads/logo.jpeg',
         alt: 'AEON Academy Logo',
       },
     ],
@@ -51,7 +49,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'AEON - Premier English Learning Platform',
     description: 'Master English with verified experts. Personalized lessons, flexible scheduling.',
-    images: ['/uploads/logo.jpeg'],
+    images: ['https://www.aeon-academy.com/uploads/logo.jpeg'],
     creator: '@aeonacademy',
   },
   robots: {
