@@ -52,6 +52,15 @@ export async function middleware(request: NextRequest) {
     try {
       const { payload } = await jwtVerify(token, JWT_SECRET);
       const userRole = payload.role as string;
+      const subscriptionStatus = payload.subscription_status as string;
+
+      // Special check for teacher subscription
+      // If teacher is trying to access dashboard but subscription is not active
+      if (userRole === 'teacher' &&
+        pathname.startsWith('/teacher') &&
+        subscriptionStatus !== 'active') {
+        return NextResponse.redirect(new URL('/subscription/teacher', request.url));
+      }
 
       // check role permissions for protected routes
       for (const [route, allowedRoles] of Object.entries(protectedRoutes)) {

@@ -15,6 +15,7 @@ export interface TokenPayload {
   userId: number;
   email: string;
   role: 'student' | 'teacher' | 'admin';
+  subscription_status?: string;
 }
 
 // generating JWT token
@@ -90,6 +91,7 @@ export async function authenticateUser(email: string, password: string) {
       userId: user.id,
       email: user.email,
       role: mappedRole,
+      subscription_status: user.subscription_status,
     });
 
     return {
@@ -100,6 +102,7 @@ export async function authenticateUser(email: string, password: string) {
         email: user.email,
         role: mappedRole,
         isVerified: user.is_verified,
+        subscription_status: user.subscription_status,
       },
     };
   } catch (error) {
