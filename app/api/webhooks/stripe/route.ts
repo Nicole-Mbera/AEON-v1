@@ -114,6 +114,26 @@ async function handlePaymentSuccess(paymentIntent: Stripe.PaymentIntent) {
       args: [session_id]
     });
   }
+
+  // If this was a teacher subscription
+  if (type === 'subscription' && userId) {
+    console.log(`Processing subscription activation for user ${userId}`);
+    // 30 days from now
+    const endDate = new Date();
+    endDate.setDate(endDate.getDate() + 30);
+
+    try {
+      const result = await db.execute({
+        sql: `UPDATE users SET subscription_status = 'active', subscription_end_date = ? WHERE email = (SELECT email FROM users WHERE id = ?)`,
+        args: [endDate.toISOString(), userId]
+      });
+      console.log(`Updated active subscription for user ${userId}. DB Result:`, result);
+    } catch (dbError) {
+      console.error(`Failed to update subscription in DB for user ${userId}:`, dbError);
+    }
+  } else {
+    console.log(`Webhook payment success ignored. Type: ${type}, UserId: ${userId}`);
+  }
 }
 
 async function handlePaymentFailure(paymentIntent: Stripe.PaymentIntent) {

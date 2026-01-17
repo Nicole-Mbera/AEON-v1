@@ -52,7 +52,10 @@ function SubscriptionCheckoutForm({ redirectUrl = "/student/assessment" }: { red
                     amount: Number(amount) * 100, // Convert to cents
                     email,
                     name,
-                    purpose: "subscription", // Metadata to distinguish
+                    type: "subscription", // Explicitly set type
+                    metadata: {
+                        source: "payment_form"
+                    }
                 }),
             });
 
@@ -88,12 +91,31 @@ function SubscriptionCheckoutForm({ redirectUrl = "/student/assessment" }: { red
 
             if (paymentIntent?.status === "succeeded") {
                 setMessageType("success");
-                setMessage("Payment successful! Redirecting...");
+                setMessage("Payment successful! Verifying...");
 
-                // Redirect to destination after successful payment
+                // 1. Synchronous Verification
+                try {
+                    const verifyRes = await fetch('/api/payment/verify', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ paymentIntentId: paymentIntent.id })
+                    });
+
+                    if (!verifyRes.ok) {
+                        console.error("Verification failed, falling back to polling");
+                    }
+                } catch (e) {
+                    console.error("Verification error:", e);
+                }
+
+                // 2. Refresh Session (now likely to succeed immediately)
+                await handleRefreshSession();
+
+                setMessage("Redirecting...");
                 setTimeout(() => {
-                    router.push(redirectUrl);
-                }, 2000);
+                    // Force hard reload to ensure middleware gets new cookie
+                    window.location.href = redirectUrl;
+                }, 1000);
             }
         } catch (error: any) {
             setMessageType("error");
@@ -102,6 +124,33 @@ function SubscriptionCheckoutForm({ redirectUrl = "/student/assessment" }: { red
         } finally {
             setIsLoading(false);
         }
+    };
+
+    const handleRefreshSession = async () => {
+        const maxRetries = 10;
+        const delay = 1000; // 1 second
+
+        for (let i = 0; i < maxRetries; i++) {
+            try {
+                const res = await fetch('/api/auth/refresh-session', {
+                    method: 'POST',
+                });
+
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.user?.subscription_status === 'active') {
+                        console.log('Session refreshed and active');
+                        return true;
+                    }
+                }
+                // Wait before retrying
+                await new Promise(resolve => setTimeout(resolve, delay));
+            } catch (error) {
+                console.error('Failed to check session status:', error);
+            }
+        }
+        console.warn('Timed out waiting for subscription activation');
+        return false;
     };
 
     const cardElementOptions = {
