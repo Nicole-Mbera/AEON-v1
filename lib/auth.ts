@@ -16,6 +16,7 @@ export interface TokenPayload {
   email: string;
   role: 'student' | 'teacher' | 'admin';
   subscription_status?: string;
+  is_verified?: number;
 }
 
 // generating JWT token
@@ -69,9 +70,9 @@ export async function authenticateUser(email: string, password: string) {
     }
 
     // Check if teacher account is verified
-    if (user.role === 'teacher' && !user.is_verified) {
-      return { success: false, message: 'Your account is pending admin approval. Please wait for verification.' };
-    }
+    // if (user.role === 'teacher' && !user.is_verified) {
+    //   return { success: false, message: 'Your account is pending admin approval. Please wait for verification.' };
+    // }
 
     const isPasswordValid = await comparePassword(password, user.password_hash);
 
@@ -92,6 +93,7 @@ export async function authenticateUser(email: string, password: string) {
       email: user.email,
       role: mappedRole,
       subscription_status: user.subscription_status,
+      is_verified: user.is_verified,
     });
 
     return {

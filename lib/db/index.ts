@@ -194,11 +194,11 @@ export const professionalQueries = {
     documents: string | null
   ) => {
     return await client.execute({
-      sql: `INSERT INTO teachers (user_id, full_name, bio, specialization, years_of_experience, phone, profile_picture, license_number, institution_name, country, contact_email, mission, documents)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      sql: `INSERT INTO teachers (user_id, full_name, bio, specialization, years_of_experience, phone, profile_picture, license_number, institution_name, country, contact_email, mission, documents, monthly_fee)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       args: [
         userId, fullName, bio, specialization, yearsOfExperience, phone, profilePicture,
-        licenseNumber, institutionName, country, contactEmail, mission, documents
+        licenseNumber, institutionName, country, contactEmail, mission, documents, 3000
       ]
     });
   },

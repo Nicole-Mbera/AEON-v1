@@ -54,12 +54,28 @@ export async function middleware(request: NextRequest) {
       const userRole = payload.role as string;
       const subscriptionStatus = payload.subscription_status as string;
 
-      // Special check for teacher subscription
-      // If teacher is trying to access dashboard but subscription is not active
-      if (userRole === 'teacher' &&
-        pathname.startsWith('/teacher') &&
-        subscriptionStatus !== 'active') {
-        return NextResponse.redirect(new URL('/subscription/teacher', request.url));
+      const isVerified = payload.is_verified as number ?? 0;
+
+      // Special check for teacher subscription and verification
+      if (userRole === 'teacher' && pathname.startsWith('/teacher')) {
+        // If teacher account is not verified yet
+        if (!isVerified) {
+          if (pathname !== '/teacher/pending') {
+            return NextResponse.redirect(new URL('/teacher/pending', request.url));
+          }
+        }
+        // If teacher is verified
+        else {
+          // If trying to access pending page but are verified, redirect to dashboard
+          if (pathname === '/teacher/pending') {
+            return NextResponse.redirect(new URL('/teacher', request.url));
+          }
+
+          // If teacher is verified but subscription is not active
+          if (subscriptionStatus !== 'active') {
+            return NextResponse.redirect(new URL('/subscription/teacher', request.url));
+          }
+        }
       }
 
       // check role permissions for protected routes

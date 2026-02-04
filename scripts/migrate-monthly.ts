@@ -7,7 +7,7 @@ async function migrate() {
     try {
         // Add monthly_fee column to teachers table
         try {
-            await client.execute('ALTER TABLE teachers ADD COLUMN monthly_fee INTEGER DEFAULT 20000');
+            await client.execute('ALTER TABLE teachers ADD COLUMN monthly_fee INTEGER DEFAULT 3000');
             console.log('Added monthly_fee to teachers');
         } catch (e: any) {
             if (!e.message.includes('duplicate column')) console.log('monthly_fee might already exist or error:', e.message);

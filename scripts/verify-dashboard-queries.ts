@@ -37,7 +37,7 @@ LIMIT 1;
       SELECT 
         a.id,
         a.title,
-        a.content,
+        a.content
         a.author_type AS category,
         a.thumbnail_url,
         a.views_count,
