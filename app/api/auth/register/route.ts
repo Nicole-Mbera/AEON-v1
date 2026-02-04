@@ -183,6 +183,7 @@ export async function POST(request: Request) {
       userId: userId,
       email: email,
       role: role, // expose education role in token
+      is_verified: role === 'student' ? 1 : 0,
     });
 
     const response = NextResponse.json({

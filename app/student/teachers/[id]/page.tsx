@@ -212,7 +212,7 @@ export default function DoctorDetailPage() {
           <div className="space-y-2 text-sm text-gray-600">
             <p>{doctor.years_of_experience}+ years experience</p>
             <p className="font-semibold text-black mt-2">
-              Monthly Subscription: ${doctor.monthly_fee ? (doctor.monthly_fee / 100).toFixed(2) : '200.00'}
+              Monthly Subscription: ${doctor.monthly_fee ? (doctor.monthly_fee / 100).toFixed(2) : '30.00'}
             </p>
           </div>
         </div>
