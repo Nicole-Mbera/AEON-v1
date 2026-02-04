@@ -4,7 +4,7 @@ export const HERO_STATS = [
   { label: "Satisfaction Rate", value: "98%" },
 ] as const;
 
-export const WHY_BODYWISE =  [
+export const WHY_BODYWISE = [
   {
     title: "Personalized Learning Paths",
     description: "Education tailored to your unique goals, learning style, and pace. No more one-size-fits-all approaches that leave students behind or hold others back."
@@ -17,7 +17,7 @@ export const WHY_BODYWISE =  [
     title: "Boundless Education",
     description: "Access quality learning regardless of location, socioeconomic status, or background. Break free from geographical and financial barriers that limit educational opportunities."
   }
-]  as const;
+] as const;
 
 export const CORE_FEATURES = [
   {
@@ -27,7 +27,7 @@ export const CORE_FEATURES = [
     cta: "Find & Book Experts",
     href: "/login",
     image:
-      "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=900&q=80",
+      "/uploads/features_image_1.jpeg",
   },
   {
     title: "Digital Learning Library",
@@ -36,7 +36,7 @@ export const CORE_FEATURES = [
     cta: "Explore Library",
     href: "/login",
     image:
-      "https://images.unsplash.com/photo-1434030216411-0b793f4b4173?auto=format&fit=crop&w=900&q=80",
+      "/uploads/features_image_2.jpeg",
   },
 ] as const;
 
@@ -125,7 +125,7 @@ export const TESTIMONIALS = [
       "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=256&q=80",
     rating: 5,
   },
-  
+
   {
     name: "Marcus T.",
     location: "Lagos, Nigeria",
