@@ -112,7 +112,7 @@ function CheckoutForm({ amount, teacherName, clientSecret, onSuccess, onClose }:
                 <Button
                     type="button"
                     onClick={onClose}
-                    className="flex-1 bg-white hover:bg-gray-50 text-gray-700 border border-gray-300"
+                    className="flex-1 bg-black text-white hover:bg-gray-800"
                 >
                     Cancel
                 </Button>
