@@ -64,6 +64,7 @@ export function SignupForm() {
   });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [uploadedFiles, setUploadedFiles] = useState<Record<string, File>>({});
 
   // Password Validation State
@@ -124,6 +125,7 @@ export function SignupForm() {
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError(null);
+    setFieldErrors({});
 
     if (!selectedRole) {
       setError('Please select a role');
@@ -231,7 +233,26 @@ export function SignupForm() {
       const data = await response.json();
 
       if (!response.ok || !data.success) {
-        throw new Error(data.error || 'Registration failed');
+        if (data.errors && Array.isArray(data.errors)) {
+          const newFieldErrors: Record<string, string> = {};
+          data.errors.forEach((err: string) => {
+            const parts = err.split(':');
+            if (parts.length >= 2) {
+              const field = parts[0].trim();
+              const message = parts.slice(1).join(':').trim();
+              newFieldErrors[field] = message;
+            }
+          });
+          setFieldErrors(newFieldErrors);
+
+          // Also set a generic top-level error if needed, or rely on field errors
+          if (!error && Object.keys(newFieldErrors).length === 0) {
+            throw new Error(data.error || 'Registration failed');
+          }
+        } else {
+          throw new Error(data.error || 'Registration failed');
+        }
+        return; // Stop execution
       }
 
       if (data.token) {
@@ -313,8 +334,13 @@ export function SignupForm() {
             required
             disabled={isLoading}
             placeholder='youremail@gmail.com'
-            className="border-gray-300 focus:border-gray-800 focus:ring-gray-300"
+            className={`border-gray-300 focus:border-gray-800 focus:ring-gray-300 ${fieldErrors.email ? 'border-red-300 focus:border-red-500 focus:ring-red-200' : ''}`}
           />
+          {fieldErrors.email && (
+            <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
+              <X className="w-3 h-3" /> {fieldErrors.email}
+            </p>
+          )}
         </div>
 
         <div className="space-y-2">
@@ -442,8 +468,13 @@ export function SignupForm() {
                 onChange={handleChange}
                 disabled={isLoading}
                 placeholder="+250788123456"
-                className="border-gray-300 focus:border-gray-800 focus:ring-gray-300"
+                className={`border-gray-300 focus:border-gray-800 focus:ring-gray-300 ${fieldErrors.phone ? 'border-red-300 focus:border-red-500 focus:ring-red-200' : ''}`}
               />
+              {fieldErrors.phone && (
+                <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
+                  <X className="w-3 h-3" /> {fieldErrors.phone}
+                </p>
+              )}
             </div>
           </>
         )}
@@ -561,8 +592,13 @@ export function SignupForm() {
                   onChange={handleChange}
                   disabled={isLoading}
                   placeholder="+250788123456"
-                  className="border-gray-300 focus:border-gray-800 focus:ring-gray-300"
+                  className={`border-gray-300 focus:border-gray-800 focus:ring-gray-300 ${fieldErrors.phone ? 'border-red-300 focus:border-red-500 focus:ring-red-200' : ''}`}
                 />
+                {fieldErrors.phone && (
+                  <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
+                    <X className="w-3 h-3" /> {fieldErrors.phone}
+                  </p>
+                )}
               </div>
             </div>
 
