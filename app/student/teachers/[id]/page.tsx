@@ -17,7 +17,6 @@ interface Doctor {
   total_reviews: number;
   institution_name: string;
   contact_email?: string;
-  consultation_fee?: number;
   monthly_fee?: number;
   is_onboarded?: boolean;
 }
@@ -212,7 +211,7 @@ export default function DoctorDetailPage() {
           <div className="space-y-2 text-sm text-gray-600">
             <p>{doctor.years_of_experience}+ years experience</p>
             <p className="font-semibold text-black mt-2">
-              Monthly Subscription: ${doctor.monthly_fee ? (doctor.monthly_fee / 100).toFixed(2) : '30.00'}
+              Monthly Subscription: ${doctor.monthly_fee ? (doctor.monthly_fee / 100).toFixed(2) : '60.00'}
             </p>
           </div>
         </div>
@@ -273,7 +272,7 @@ export default function DoctorDetailPage() {
         <BookingPaymentModal
           isOpen={showPaymentModal}
           onClose={() => setShowPaymentModal(false)}
-          amount={doctor.monthly_fee || 3000}
+          amount={doctor.monthly_fee || 6000}
           teacherName={doctor.full_name}
           teacherId={doctor.id}
           onSuccess={confirmBooking}

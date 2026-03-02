@@ -38,8 +38,8 @@ export async function POST(request: Request) {
         }
 
         // Calculate amount and fee
-        // Default to $30.00 (3000 cents) if not set
-        const amount = teacher.monthly_fee || 3000;
+        // Default to $60.00 (6000 cents) if not set
+        const amount = teacher.monthly_fee || 6000;
 
         // Platform fee calculation (e.g., 30%)
         const platformFeePercent = 0.3;

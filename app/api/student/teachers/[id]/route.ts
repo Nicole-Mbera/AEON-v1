@@ -26,7 +26,6 @@ export async function GET(
             t.average_rating,
             t.total_reviews,
             t.institution_name,
-            t.consultation_fee,
             t.monthly_fee,
             t.stripe_account_id,
             COALESCE(t.contact_email, u.email) as contact_email
