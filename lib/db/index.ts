@@ -198,7 +198,7 @@ export const professionalQueries = {
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       args: [
         userId, fullName, bio, specialization, yearsOfExperience, phone, profilePicture,
-        licenseNumber, institutionName, country, contactEmail, mission, documents, 3000
+        licenseNumber, institutionName, country, contactEmail, mission, documents, 6000
       ]
     });
   },

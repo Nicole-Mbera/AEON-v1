@@ -6,13 +6,9 @@ async function migrate() {
 
     try {
         // Add columns to teachers table
-        try {
-            await client.execute('ALTER TABLE teachers ADD COLUMN consultation_fee INTEGER DEFAULT 5000');
-            console.log('Added consultation_fee to teachers');
-        } catch (e: any) {
-            if (!e.message.includes('duplicate column')) console.log('consultation_fee might already exist or error:', e.message);
-        }
-
+        // consultation_fee has been removed from the schema. If you rerun this
+        // migration after running `scripts/drop-consultation-fee.ts` it would
+        // otherwise re‑create the column, so we no longer include it here.
         try {
             await client.execute('ALTER TABLE teachers ADD COLUMN stripe_account_id TEXT');
             console.log('Added stripe_account_id to teachers');
