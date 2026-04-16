@@ -1,10 +1,8 @@
 'use client';
-import Link from 'next/link';
 
 export default function Home() {
   return (
     <>
-      {/* NAVBAR */}
       <nav className="navbar">
         <div className="nav-logo">
           <div className="nav-logo-img">
@@ -13,28 +11,27 @@ export default function Home() {
           <span className="nav-logo-name">AEON.Academy</span>
         </div>
         <div className="nav-links">
-          <button className="nav-a">Features</button>
-          <button className="nav-a">About</button>
-          <button className="nav-a">Testimonials</button>
-          <Link href="/library" className="nav-a">Library</Link>
-          <Link href="/teacher" className="nav-a">Teachers</Link>
+          <a href="#features" className="nav-a">Features</a>
+          <a href="#why" className="nav-a">About</a>
+          <a href="#community" className="nav-a">Testimonials</a>
+          <a href="/library" className="nav-a">Library</a>
+          <a href="/teacher" className="nav-a">Teachers</a>
         </div>
         <div className="nav-right">
-          <Link href="/donate" className="nav-plain">Donate</Link>
-          <Link href="/login" className="nav-plain">Login</Link>
-          <Link href="/signup" className="nav-btn">Get Started</Link>
+          <a href="/donate" className="nav-plain">Donate</a>
+          <a href="/login" className="nav-plain">Login</a>
+          <a href="/signup" className="nav-btn">Get Started</a>
         </div>
       </nav>
 
-      {/* HERO */}
-      <section className="hero">
+      <section className="hero" id="features">
         <div className="hero-l">
           <div className="hero-l-inner">
             <h1 className="hero-h1">AEON, Revolutionizing Education Accessibility and Efficiency, Together.</h1>
             <p className="hero-p">We connect passionate students with expert teachers through simple booking of one on one seamless authentic connection.</p>
             <div className="hero-btns">
-              <Link href="/login" className="btn-sff">Start for Free</Link>
-              <Link href="/library" className="btn-er">Explore Resources</Link>
+              <a href="/login" className="btn-sff">Start for Free</a>
+              <a href="/library" className="btn-er">Explore Resources</a>
             </div>
           </div>
         </div>
@@ -43,28 +40,25 @@ export default function Home() {
         </div>
       </section>
 
-      {/* STATS */}
       <div className="stats-bar">
         <div className="stat"><div className="stat-n">50K+</div><div className="stat-l">Active Users</div></div>
         <div className="stat"><div className="stat-n">200+</div><div className="stat-l">Verified Professionals</div></div>
         <div className="stat"><div className="stat-n">98%</div><div className="stat-l">Satisfaction Rate</div></div>
       </div>
 
-      {/* TEACHER BAND */}
       <section className="teacher-band">
         <div>
           <div className="tb-eyebrow">For Teachers</div>
           <h2 className="tb-h2">Start Your Teaching Journey</h2>
           <p className="tb-p">Watch this quick tutorial to learn how to sign up, create your profile, and begin teaching on AEON Academy.</p>
-          <div className="tb-yt">Having trouble? <a href="https://www.youtube.com/watch?v=g658Rygj9MU" target="_blank">Watch on YouTube</a></div>
+          <div className="tb-yt">Having trouble? <a href="https://www.youtube.com/watch?v=g658Rygj9MU" target="_blank" rel="noreferrer">Watch on YouTube</a></div>
         </div>
         <div className="vid-box">
           <iframe src="https://www.youtube.com/embed/g658Rygj9MU?rel=0&modestbranding=1" title="Teacher Sign Up Tutorial" allowFullScreen></iframe>
         </div>
       </section>
 
-      {/* WHY AEON */}
-      <section>
+      <section id="why">
         <div className="why-wrap">
           <div className="sec-eyebrow">Why AEON?</div>
           <h2 className="sec-h2">Breaking down barriers to quality education through personalized, boundary-free learning.</h2>
@@ -88,11 +82,10 @@ export default function Home() {
         </div>
       </section>
 
-      {/* FEATURES */}
       <section className="features-section">
         <div className="feat-head">
           <div className="sec-eyebrow" style={{textAlign:'center'}}>Our Core Features</div>
-          <h2 className="sec-h2" style={{textAlign:'center',margin:'0 auto'}}>Learn from Experts, Access Resources Anywhere</h2>
+          <h2 className="sec-h2" style={{textAlign:'center', margin:'0 auto'}}>Learn from Experts, Access Resources Anywhere</h2>
         </div>
         <div className="feat-row">
           <div className="feat-img">
@@ -100,8 +93,8 @@ export default function Home() {
           </div>
           <div className="feat-cnt">
             <h3 className="feat-h3">Book live Sessions with experts</h3>
-            <p className="feat-p">Find and schedule one-on-one video sessions with verified experts in your field. Browse professionals, view their specialties and availability, and book personalized mentoring sessions.</p>
-            <Link href="/login" className="feat-link">Find &amp; Book Experts →</Link>
+            <p className="feat-p">Find and schedule one-on-one video sessions with verified experts. Browse professionals, view their specialties and availability, and book personalized mentoring sessions.</p>
+            <a href="/login" className="feat-link">Find &amp; Book Experts</a>
           </div>
         </div>
         <div className="feat-row rev">
@@ -110,38 +103,36 @@ export default function Home() {
           </div>
           <div className="feat-cnt">
             <h3 className="feat-h3">Digital Learning Library</h3>
-            <p className="feat-p">Access our comprehensive digital library with curated educational videos, articles, and interactive resources. Learn at your own pace with expert-created content.</p>
-            <Link href="/library" className="feat-link">Explore Library →</Link>
+            <p className="feat-p">Access our comprehensive digital library with curated educational videos, articles, and interactive resources. Learn at your own pace.</p>
+            <a href="/library" className="feat-link">Explore Library</a>
           </div>
         </div>
       </section>
 
-      {/* TESTIMONIALS */}
-      <section className="test-wrap">
+      <section className="test-wrap" id="community">
         <div style={{textAlign:'center'}}>
           <div className="sec-eyebrow" style={{display:'inline-block'}}>What Our Community Says</div>
-          <h2 className="sec-h2" style={{textAlign:'center',margin:'.6rem auto 0',maxWidth:'520px'}}>Stories from students who leveled up their fluency through AEON.</h2>
+          <h2 className="sec-h2" style={{textAlign:'center', margin:'.6rem auto 0', maxWidth:'520px'}}>Stories from students who leveled up their fluency through AEON.</h2>
         </div>
         <div className="test-grid">
           <div className="test-card">
             <div className="test-stars">★★★★★</div>
-            <div className="test-q">"AEON completely changed how I approach learning English. My teacher is incredibly patient and the sessions are so practical. I went from struggling to holding full business conversations in just 3 months."</div>
+            <div className="test-q">AEON completely changed how I approach learning English. My teacher is incredibly patient and sessions are so practical. I went from struggling to holding full business conversations in just 3 months.</div>
             <div className="test-auth"><div className="test-av">AM</div><div><div className="test-name">Amira Mansouri</div><div className="test-role">English Student · Algeria</div></div></div>
           </div>
           <div className="test-card">
             <div className="test-stars">★★★★★</div>
-            <div className="test-q">"The booking system is simple and the teachers are genuinely verified professionals. I booked my first session in minutes and haven't looked back."</div>
+            <div className="test-q">The booking system is simple and the teachers are genuinely verified professionals. I booked my first session in minutes and have not looked back.</div>
             <div className="test-auth"><div className="test-av">KT</div><div><div className="test-name">Kwame Tetteh</div><div className="test-role">Spanish Student · Ghana</div></div></div>
           </div>
           <div className="test-card">
             <div className="test-stars">★★★★★</div>
-            <div className="test-q">"As a refugee, access to quality education felt impossible. AEON gave me a certified teacher, flexible hours, and most importantly — hope. I'm now pursuing my degree in Germany."</div>
+            <div className="test-q">As a refugee, access to quality education felt impossible. AEON gave me a certified teacher, flexible hours, and most importantly hope. I am now pursuing my degree in Germany.</div>
             <div className="test-auth"><div className="test-av">LH</div><div><div className="test-name">Layla Hassan</div><div className="test-role">German Student · Afghanistan</div></div></div>
           </div>
         </div>
       </section>
 
-      {/* FOOTER */}
       <footer>
         <div className="footer-grid">
           <div>
@@ -154,24 +145,24 @@ export default function Home() {
           <div>
             <div className="f-col-title">Platform</div>
             <ul className="f-links">
-              <li><a href="#">About Us</a></li>
-              <li><a href="#">How It Works</a></li>
-              <li><a href="#">Success Stories</a></li>
-              <li><Link href="/library">Education Hub</Link></li>
+              <li><a href="#why">About Us</a></li>
+              <li><a href="#features">How It Works</a></li>
+              <li><a href="#community">Success Stories</a></li>
+              <li><a href="/library">Education Hub</a></li>
             </ul>
           </div>
           <div>
             <div className="f-col-title">Get Started</div>
             <ul className="f-links">
-              <li><Link href="/login">Sign In</Link></li>
-              <li><Link href="/signup">Sign Up</Link></li>
-              <li><Link href="/teacher">Teachers</Link></li>
-              <li><Link href="/donate">Donate</Link></li>
+              <li><a href="/login">Sign In</a></li>
+              <li><a href="/signup">Sign Up</a></li>
+              <li><a href="/teacher">Teachers</a></li>
+              <li><a href="/donate">Donate</a></li>
             </ul>
           </div>
         </div>
         <div className="footer-bot">
-          <div className="footer-copy">© 2024 AEON.Academy. All rights reserved.</div>
+          <div className="footer-copy">2024 AEON.Academy. All rights reserved.</div>
           <div className="footer-copy">Revolutionizing education, one connection at a time.</div>
         </div>
       </footer>
